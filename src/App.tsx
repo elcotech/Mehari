@@ -1,32 +1,119 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import './App.css';
 
+// Define TypeScript interfaces
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  password: string;
+  userType: string;
+  companyName?: string;
+  phone: string;
+  address: string;
+  lat?: number;
+  lng?: number;
+  registered: string;
+}
+
+interface Company {
+  id: string;
+  userId: string;
+  name: string;
+  description: string;
+  location: string;
+  lat: number;
+  lng: number;
+  rating: number;
+  totalOrders: number;
+  established: string;
+}
+
+interface Material {
+  id: string;
+  companyId: string;
+  name: string;
+  category: string;
+  description: string;
+  price: number;
+  unit: string;
+  quantity: number;
+  minOrder: number;
+  transportCost?: number;
+  rating?: number;
+}
+
+interface Order {
+  id: string;
+  customerId: string;
+  companyId: string;
+  materialId: string;
+  quantity: number;
+  unitPrice: number;
+  transportCost: number;
+  totalAmount: number;
+  status: string;
+  orderDate: string;
+  deliveryDate?: string;
+  address: string;
+  notes?: string;
+}
+
+interface Alert {
+  message: string;
+  type: string;
+}
+
+interface FormData {
+  loginEmail: string;
+  loginPassword: string;
+  registerFullName: string;
+  registerEmail: string;
+  registerPassword: string;
+  registerPhone: string;
+  registerAddress: string;
+  registerCompanyName: string;
+  registerUserType: string;
+  materialName: string;
+  materialCategory: string;
+  materialPrice: string;
+  materialQuantity: string;
+  materialUnit: string;
+  materialMinOrder: string;
+  materialDescription: string;
+  searchQuery: string;
+  searchCategory: string;
+  searchMaxPrice: string;
+  orderQuantity: string;
+  orderAddress: string;
+}
+
 function App() {
-  // State Management
-  const [currentPage, setCurrentPage] = useState('home');
-  const [currentUser, setCurrentUser] = useState(() => {
+  // State Management with proper types
+  const [currentPage, setCurrentPage] = useState<string>('home');
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const savedUser = localStorage.getItem('currentUser');
     return savedUser ? JSON.parse(savedUser) : null;
   });
-  const [materials, setMaterials] = useState(() => {
+  const [materials, setMaterials] = useState<Material[]>(() => {
     const savedMaterials = localStorage.getItem('materials');
     return savedMaterials ? JSON.parse(savedMaterials) : [];
   });
-  const [companies, setCompanies] = useState(() => {
+  const [companies, setCompanies] = useState<Company[]>(() => {
     const savedCompanies = localStorage.getItem('companies');
     return savedCompanies ? JSON.parse(savedCompanies) : [];
   });
-  const [orders, setOrders] = useState(() => {
+  const [orders, setOrders] = useState<Order[]>(() => {
     const savedOrders = localStorage.getItem('orders');
     return savedOrders ? JSON.parse(savedOrders) : [];
   });
-  const [users, setUsers] = useState(() => {
+  const [users, setUsers] = useState<User[]>(() => {
     const savedUsers = localStorage.getItem('users');
     return savedUsers ? JSON.parse(savedUsers) : [];
   });
-  const [searchResults, setSearchResults] = useState([]);
-  const [alert, setAlert] = useState(null);
-  const [formData, setFormData] = useState({
+  const [searchResults, setSearchResults] = useState<Array<Material & {company?: Company, totalCost?: number, estimatedTransport?: number}>>([]);
+  const [alert, setAlert] = useState<Alert | null>(null);
+  const [formData, setFormData] = useState<FormData>({
     loginEmail: '',
     loginPassword: '',
     registerFullName: '',
@@ -53,7 +140,7 @@ function App() {
   // Initialize with sample data
   useEffect(() => {
     if (users.length === 0) {
-      const sampleUsers = [
+      const sampleUsers: User[] = [
         {
           id: 'user1',
           name: 'Mehari Admin',
@@ -86,7 +173,7 @@ function App() {
     }
 
     if (companies.length === 0) {
-      const sampleCompanies = [
+      const sampleCompanies: Company[] = [
         {
           id: 'comp1',
           userId: 'user1',
@@ -129,7 +216,7 @@ function App() {
     }
 
     if (materials.length === 0) {
-      const sampleMaterials = [
+      const sampleMaterials: Material[] = [
         {
           id: 'mat1',
           companyId: 'comp1',
@@ -188,7 +275,7 @@ function App() {
     }
 
     if (orders.length === 0) {
-      const sampleOrders = [
+      const sampleOrders: Order[] = [
         {
           id: 'order1',
           customerId: 'user2',
@@ -226,8 +313,8 @@ function App() {
     localStorage.setItem('users', JSON.stringify(users));
   }, [users]);
 
-  // Utility Functions
-  const formatCurrency = (amount) => {
+  // Utility Functions with proper types
+  const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('en-ET', {
       style: 'currency',
       currency: 'ETB',
@@ -235,7 +322,7 @@ function App() {
     }).format(amount);
   };
 
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
@@ -244,14 +331,14 @@ function App() {
     });
   };
 
-  const showAlert = (message, type = 'info', duration = 5000) => {
+  const showAlert = (message: string, type = 'info', duration = 5000): void => {
     setAlert({ message, type });
     if (duration > 0) {
       setTimeout(() => setAlert(null), duration);
     }
   };
 
-  const calculateTransportCost = (fromLat, fromLng, toLat, toLng, quantity) => {
+  const calculateTransportCost = (fromLat: number, fromLng: number, toLat: number, toLng: number, quantity: number): number => {
     const R = 6371; // Earth's radius in km
     const dLat = (toLat - fromLat) * Math.PI / 180;
     const dLng = (toLng - fromLng) * Math.PI / 180;
@@ -268,13 +355,13 @@ function App() {
     return Math.round(baseRate + (distance * ratePerKm * quantityFactor));
   };
 
-  const getMaterialById = (id) => materials.find(m => m.id === id);
-  const getCompanyById = (id) => companies.find(c => c.id === id);
-  const getUserById = (id) => users.find(u => u.id === id);
-  const getCompanyByUserId = (userId) => companies.find(c => c.userId === userId);
+  const getMaterialById = (id: string): Material | undefined => materials.find(m => m.id === id);
+  const getCompanyById = (id: string): Company | undefined => companies.find(c => c.id === id);
+  const getUserById = (id: string): User | undefined => users.find(u => u.id === id);
+  const getCompanyByUserId = (userId: string): Company | undefined => companies.find(c => c.userId === userId);
 
   // Authentication
-  const handleLogin = (e) => {
+  const handleLogin = (e: React.FormEvent): void => {
     e.preventDefault();
     const { loginEmail, loginPassword } = formData;
     
@@ -293,7 +380,7 @@ function App() {
     }
   };
 
-  const handleRegister = (e) => {
+  const handleRegister = (e: React.FormEvent): void => {
     e.preventDefault();
     const { 
       registerFullName, registerEmail, registerPassword, registerPhone, 
@@ -306,7 +393,7 @@ function App() {
       return;
     }
     
-    const newUser = {
+    const newUser: User = {
       id: 'user' + (users.length + 1),
       name: registerFullName,
       email: registerEmail,
@@ -323,14 +410,14 @@ function App() {
     setUsers(prev => [...prev, newUser]);
     
     if (registerUserType === 'company') {
-      const newCompany = {
+      const newCompany: Company = {
         id: 'comp' + (companies.length + 1),
         userId: newUser.id,
         name: registerCompanyName,
         description: '',
         location: registerAddress,
-        lat: newUser.lat,
-        lng: newUser.lng,
+        lat: newUser.lat || 9.0320,
+        lng: newUser.lng || 38.7469,
         rating: 0,
         totalOrders: 0,
         established: new Date().getFullYear().toString()
@@ -351,7 +438,7 @@ function App() {
     }));
   };
 
-  const handleLogout = () => {
+  const handleLogout = (): void => {
     setCurrentUser(null);
     localStorage.removeItem('currentUser');
     showAlert('Logged out successfully', 'info');
@@ -359,7 +446,7 @@ function App() {
   };
 
   // Material Management
-  const handleAddMaterial = (e) => {
+  const handleAddMaterial = (e: React.FormEvent): void => {
     e.preventDefault();
     const { 
       materialName, materialCategory, materialPrice, materialQuantity,
@@ -377,7 +464,7 @@ function App() {
       return;
     }
     
-    const newMaterial = {
+    const newMaterial: Material = {
       id: 'mat' + (materials.length + 1),
       companyId: company.id,
       name: materialName,
@@ -406,13 +493,13 @@ function App() {
     }));
   };
 
-  const handleDeleteMaterial = (id) => {
+  const handleDeleteMaterial = (id: string): void => {
     setMaterials(prev => prev.filter(m => m.id !== id));
     showAlert('Material deleted successfully', 'success');
   };
 
   // Order Management
-  const handlePlaceOrder = (materialId) => {
+  const handlePlaceOrder = (materialId: string): void => {
     if (!currentUser || currentUser.userType !== 'customer') {
       showAlert('Only customers can place orders', 'danger');
       return;
@@ -446,7 +533,7 @@ function App() {
     
     const totalAmount = (material.price * quantity) + transportCost;
     
-    const newOrder = {
+    const newOrder: Order = {
       id: 'order' + (orders.length + 1),
       customerId: currentUser.id,
       companyId: company.id,
@@ -467,7 +554,7 @@ function App() {
     setFormData(prev => ({ ...prev, orderQuantity: '', orderAddress: '' }));
   };
 
-  const handleUpdateOrderStatus = (orderId, status) => {
+  const handleUpdateOrderStatus = (orderId: string, status: string): void => {
     setOrders(prev => prev.map(order => {
       if (order.id === orderId) {
         const updatedOrder = { ...order, status };
@@ -482,7 +569,7 @@ function App() {
   };
 
   // Search Functionality
-  const handleSearch = (e) => {
+  const handleSearch = (e: React.FormEvent): void => {
     e.preventDefault();
     const { searchQuery, searchCategory, searchMaxPrice } = formData;
     
@@ -529,21 +616,21 @@ function App() {
       };
     });
     
-    results.sort((a, b) => a.totalCost - b.totalCost);
+    results.sort((a, b) => (a.totalCost || 0) - (b.totalCost || 0));
     setSearchResults(results);
   };
 
   // Navigation
-  const navigateTo = (page) => {
+  const navigateTo = (page: string): void => {
     setCurrentPage(page);
   };
 
-  const switchUserType = (type) => {
+  const switchUserType = (type: string): void => {
     setFormData(prev => ({ ...prev, registerUserType: type }));
   };
 
   // Handle form input changes
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>): void => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
@@ -584,7 +671,7 @@ function App() {
   );
 
   const renderUserNav = () => {
-    const isCompany = currentUser.userType === 'company';
+    const isCompany = currentUser?.userType === 'company';
     return (
       <>
         <a href="#" className={`nav-link ${currentPage === 'home' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('home'); }}>
@@ -626,11 +713,11 @@ function App() {
         
         <div className="user-info">
           <div className="user-avatar">
-            {currentUser.name.charAt(0).toUpperCase()}
+            {currentUser?.name?.charAt(0).toUpperCase()}
           </div>
           <div>
-            <div className="user-name">{currentUser.name}</div>
-            <div className="user-type">{currentUser.userType === 'company' ? 'Supplier' : 'Customer'}</div>
+            <div className="user-name">{currentUser?.name}</div>
+            <div className="user-type">{currentUser?.userType === 'company' ? 'Supplier' : 'Customer'}</div>
           </div>
           <button className="btn-logout" onClick={handleLogout}>
             <i className="fas fa-sign-out-alt"></i> Logout
@@ -644,7 +731,7 @@ function App() {
   const renderAlert = () => {
     if (!alert) return null;
     
-    const alertIcons = {
+    const alertIcons: Record<string, string> = {
       success: 'check-circle',
       danger: 'exclamation-circle',
       warning: 'exclamation-triangle',
@@ -665,7 +752,7 @@ function App() {
       totalMaterials: materials.length,
       totalCompanies: companies.length,
       totalOrders: orders.length,
-      avgRating: (materials.reduce((sum, m) => sum + (m.rating || 0), 0) / materials.length).toFixed(1) || '4.5'
+      avgRating: (materials.reduce((sum: number, m: Material) => sum + (m.rating || 0), 0) / materials.length).toFixed(1) || '4.5'
     };
     
     return (
@@ -949,7 +1036,7 @@ function App() {
       totalMaterials: companyMaterials.length,
       totalOrders: companyOrders.length,
       pendingOrders: companyOrders.filter(o => o.status === 'pending').length,
-      revenue: companyOrders.reduce((sum, o) => sum + o.totalAmount, 0)
+      revenue: companyOrders.reduce((sum: number, o: Order) => sum + o.totalAmount, 0)
     };
     
     return (
@@ -1020,7 +1107,7 @@ function App() {
                 </tr>
               </thead>
               <tbody>
-                {companyMaterials.map(material => (
+                {companyMaterials.map((material: Material) => (
                   <tr key={material.id}>
                     <td>
                       <strong>{material.name}</strong><br/>
@@ -1069,7 +1156,7 @@ function App() {
       totalOrders: userOrders.length,
       pendingOrders: userOrders.filter(o => o.status === 'pending').length,
       deliveredOrders: userOrders.filter(o => o.status === 'delivered').length,
-      totalSpent: userOrders.reduce((sum, o) => sum + o.totalAmount, 0)
+      totalSpent: userOrders.reduce((sum: number, o: Order) => sum + o.totalAmount, 0)
     };
     
     return (
@@ -1140,7 +1227,7 @@ function App() {
                 </tr>
               </thead>
               <tbody>
-                {userOrders.slice(0, 5).map(order => {
+                {userOrders.slice(0, 5).map((order: Order) => {
                   const material = getMaterialById(order.materialId);
                   const company = getCompanyById(order.companyId);
                   return (
@@ -1169,7 +1256,7 @@ function App() {
             <h3 className="card-title">Recommended Materials</h3>
           </div>
           <div className="materials-grid">
-            {materials.slice(0, 4).map(material => {
+            {materials.slice(0, 4).map((material: Material) => {
               const company = getCompanyById(material.companyId);
               return (
                 <div className="material-card" key={material.id}>
@@ -1201,7 +1288,7 @@ function App() {
                     <button className="btn btn-primary w-100 mt-2" onClick={() => {
                       setFormData(prev => ({ 
                         ...prev, 
-                        orderQuantity: material.minOrder,
+                        orderQuantity: material.minOrder.toString(),
                         orderAddress: currentUser.address
                       }));
                       setCurrentPage('search-materials');
@@ -1443,7 +1530,7 @@ function App() {
                       <button className="btn btn-primary w-100 mt-2" onClick={() => {
                         setFormData(prev => ({ 
                           ...prev, 
-                          orderQuantity: item.minOrder,
+                          orderQuantity: item.minOrder.toString(),
                           orderAddress: currentUser?.address || ''
                         }));
                         showAlert(`Ready to order ${item.name}. Please enter quantity and address.`, 'info');
@@ -1462,7 +1549,7 @@ function App() {
               <h3 className="card-title">Available Materials</h3>
             </div>
             <div className="materials-grid">
-              {materials.map(material => {
+              {materials.map((material: Material) => {
                 const company = getCompanyById(material.companyId);
                 return (
                   <div className="material-card" key={material.id}>
@@ -1494,7 +1581,7 @@ function App() {
                       <button className="btn btn-primary w-100 mt-2" onClick={() => {
                         setFormData(prev => ({ 
                           ...prev, 
-                          orderQuantity: material.minOrder,
+                          orderQuantity: material.minOrder.toString(),
                           orderAddress: currentUser?.address || ''
                         }));
                         handlePlaceOrder(material.id);
@@ -1546,7 +1633,7 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {userOrders.map(order => {
+              {userOrders.map((order: Order) => {
                 const material = getMaterialById(order.materialId);
                 const company = getCompanyById(order.companyId);
                 const customer = getUserById(order.customerId);
@@ -1744,10 +1831,10 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {companies.map(company => {
+              {companies.map((company: Company) => {
                 const companyMaterials = materials.filter(m => m.companyId === company.id);
                 const avgPrice = companyMaterials.length > 0 
-                  ? companyMaterials.reduce((sum, m) => sum + m.price, 0) / companyMaterials.length 
+                  ? companyMaterials.reduce((sum: number, m: Material) => sum + m.price, 0) / companyMaterials.length 
                   : 0;
                 
                 let estTransport = 'N/A';
