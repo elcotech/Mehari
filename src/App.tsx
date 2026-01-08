@@ -67,6 +67,7 @@ interface Alert {
 interface FormData {
   loginEmail: string;
   loginPassword: string;
+  selectedAddress: string;
   registerFullName: string;
   registerEmail: string;
   registerPassword: string;
@@ -116,6 +117,7 @@ function App() {
   const [formData, setFormData] = useState<FormData>({
     loginEmail: '',
     loginPassword: '',
+    selectedAddress: '',
     registerFullName: '',
     registerEmail: '',
     registerPassword: '',
@@ -363,7 +365,7 @@ function App() {
   // Authentication
   const handleLogin = (e: React.FormEvent): void => {
     e.preventDefault();
-    const { loginEmail, loginPassword } = formData;
+    const { loginEmail, loginPassword, selectedAddress } = formData;
     
     const user = users.find(u => 
       u.email === loginEmail && u.password === loginPassword
@@ -374,7 +376,7 @@ function App() {
       localStorage.setItem('currentUser', JSON.stringify(user));
       showAlert('Login successful!', 'success');
       setCurrentPage('home');
-      setFormData(prev => ({ ...prev, loginEmail: '', loginPassword: '' }));
+      setFormData(prev => ({ ...prev, loginEmail: '', loginPassword: '', selectedAddress: '' }));
     } else {
       showAlert('Invalid email or password', 'danger');
     }
@@ -568,6 +570,30 @@ function App() {
     showAlert(`Order status updated to ${status}`, 'success');
   };
 
+  // Contact Supplier Function
+  const handleContactSupplier = (materialId: string): void => {
+    const material = getMaterialById(materialId);
+    if (!material) return;
+    
+    const company = getCompanyById(material.companyId);
+    if (!company) return;
+    
+    const user = users.find(u => u.id === company.userId);
+    if (!user) return;
+    
+    showAlert(`Contacting ${company.name}. Phone: ${user.phone}. Email: ${user.email}`, 'info');
+    
+    // Simulate opening contact dialog
+    const contactMessage = `Hello, I'm interested in ${material.name}. Could you provide more details?`;
+    console.log('Contact message:', contactMessage);
+    console.log('Supplier contact info:', {
+      company: company.name,
+      phone: user.phone,
+      email: user.email,
+      address: company.location
+    });
+  };
+
   // Search Functionality
   const handleSearch = (e: React.FormEvent): void => {
     e.preventDefault();
@@ -644,7 +670,7 @@ function App() {
             <i className="fas fa-hard-hat"></i>
           </div>
           <div className="logo-text">
-            <h1>Mehari's SupplyChain AI</h1>
+            <h1>Mehari SupplyChain AI</h1>
             <p>AI-Driven Construction Material Platform</p>
           </div>
         </div>
@@ -881,6 +907,24 @@ function App() {
                   placeholder="Enter your password"
                 />
               </div>
+
+              <div className="form-group">
+                <label className="form-label">Select Address (Optional)</label>
+                <select 
+                  className="form-select" 
+                  name="selectedAddress"
+                  value={formData.selectedAddress}
+                  onChange={handleInputChange}
+                >
+                  <option value="">Select from registered addresses</option>
+                  {users.map(user => (
+                    <option key={user.id} value={user.address}>
+                      {user.name} - {user.address}
+                    </option>
+                  ))}
+                </select>
+                <small className="form-text">Select a registered user address to auto-fill</small>
+              </div>
               
               <button type="submit" className="btn-submit">
                 <i className="fas fa-sign-in-alt"></i> Login
@@ -902,7 +946,7 @@ function App() {
         <div className="auth-card">
           <div className="auth-header">
             <h2>Create Account</h2>
-            <p>Join Mehari's Construction Platform</p>
+            <p>Join Mehari Construction Platform</p>
           </div>
           <div className="auth-body">
             <div className="auth-tabs">
@@ -1295,6 +1339,9 @@ function App() {
                     }}>
                       <i className="fas fa-shopping-cart"></i> Order Now
                     </button>
+                    <button className="btn btn-secondary w-100 mt-2" onClick={() => handleContactSupplier(material.id)}>
+                      <i className="fas fa-phone-alt"></i> Contact Supplier
+                    </button>
                   </div>
                 </div>
               );
@@ -1535,7 +1582,10 @@ function App() {
                         }));
                         showAlert(`Ready to order ${item.name}. Please enter quantity and address.`, 'info');
                       }}>
-                        <i className="fas fa-shopping-cart"></i> Place Order
+                        <i className="fas fa-shopping-cart"></i> Order Now
+                      </button>
+                      <button className="btn btn-secondary w-100 mt-2" onClick={() => handleContactSupplier(item.id)}>
+                        <i className="fas fa-phone-alt"></i> Contact Supplier
                       </button>
                     </div>
                   </div>
@@ -1587,6 +1637,9 @@ function App() {
                         handlePlaceOrder(material.id);
                       }}>
                         <i className="fas fa-shopping-cart"></i> Order Now
+                      </button>
+                      <button className="btn btn-secondary w-100 mt-2" onClick={() => handleContactSupplier(material.id)}>
+                        <i className="fas fa-phone-alt"></i> Contact Supplier
                       </button>
                     </div>
                   </div>
@@ -1954,7 +2007,7 @@ function App() {
     <footer className="footer">
       <div className="footer-content">
         <div className="footer-section">
-          <h3>Mehari's SupplyChain AI</h3>
+          <h3>Mehari SupplyChain AI</h3>
           <p>AI-driven platform optimizing construction material supply chains in Ethiopia. Master's Program Project.</p>
           <p><i className="fas fa-map-marker-alt"></i> Addis Ababa, Ethiopia</p>
         </div>
@@ -1974,13 +2027,13 @@ function App() {
           <ul className="footer-links">
             <li><a href="#"><i className="fas fa-envelope"></i> meharinageb@gmail.com</a></li>
             <li><a href="#"><i className="fas fa-phone"></i> +251909919154</a></li>
-            <li><a href="#"><i className="fas fa-university"></i> Addis Ababa University</a></li>
+            <li><a href="#"><i className="fas fa-university"></i> Mehari</a></li>
           </ul>
         </div>
       </div>
       
       <div className="copyright">
-        <p>© 2024 Mehari's AI Construction Supply Chain Platform | Master's Program Project | All data is stored locally in your browser</p>
+        <p>© 2024 Mehari AI Construction Supply Chain Platform | Master's Program Project | All data is stored locally in your browser</p>
       </div>
     </footer>
   );
