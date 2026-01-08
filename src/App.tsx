@@ -14,6 +14,8 @@ interface User {
   lat?: number;
   lng?: number;
   registered: string;
+  loginAttempts: number;
+  lockUntil?: number;
 }
 
 interface Company {
@@ -67,7 +69,7 @@ interface Alert {
 interface FormData {
   loginEmail: string;
   loginPassword: string;
-  selectedAddress: string;
+  selectedUser: string;
   registerFullName: string;
   registerEmail: string;
   registerPassword: string;
@@ -110,14 +112,23 @@ function App() {
   });
   const [users, setUsers] = useState<User[]>(() => {
     const savedUsers = localStorage.getItem('users');
-    return savedUsers ? JSON.parse(savedUsers) : [];
+    if (savedUsers) {
+      const parsedUsers = JSON.parse(savedUsers);
+      // Initialize loginAttempts and lockUntil if they don't exist
+      return parsedUsers.map((user: User) => ({
+        ...user,
+        loginAttempts: user.loginAttempts || 0,
+        lockUntil: user.lockUntil || 0
+      }));
+    }
+    return [];
   });
   const [searchResults, setSearchResults] = useState<Array<Material & {company?: Company, totalCost?: number, estimatedTransport?: number}>>([]);
   const [alert, setAlert] = useState<Alert | null>(null);
   const [formData, setFormData] = useState<FormData>({
     loginEmail: '',
     loginPassword: '',
-    selectedAddress: '',
+    selectedUser: '',
     registerFullName: '',
     registerEmail: '',
     registerPassword: '',
@@ -154,7 +165,9 @@ function App() {
           address: 'Bole, Addis Ababa',
           lat: 8.9806,
           lng: 38.7578,
-          registered: '2023-01-15'
+          registered: '2023-01-15',
+          loginAttempts: 0,
+          lockUntil: 0
         },
         {
           id: 'user2',
@@ -167,7 +180,9 @@ function App() {
           address: 'Megenagna, Addis Ababa',
           lat: 9.0227,
           lng: 38.7468,
-          registered: '2023-02-20'
+          registered: '2023-02-20',
+          loginAttempts: 0,
+          lockUntil: 0
         }
       ];
       setUsers(sampleUsers);
@@ -362,23 +377,89 @@ function App() {
   const getUserById = (id: string): User | undefined => users.find(u => u.id === id);
   const getCompanyByUserId = (userId: string): Company | undefined => companies.find(c => c.userId === userId);
 
+  // Check if user is locked
+  const isUserLocked = (user: User): boolean => {
+    if (user.lockUntil && user.lockUntil > Date.now()) {
+      return true;
+    }
+    return false;
+  };
+
+  // Reset login attempts after lock period
+  const resetLoginAttempts = (userId: string): void => {
+    setUsers(prev => prev.map(user => {
+      if (user.id === userId && user.lockUntil && user.lockUntil <= Date.now()) {
+        return {
+          ...user,
+          loginAttempts: 0,
+          lockUntil: 0
+        };
+      }
+      return user;
+    }));
+  };
+
   // Authentication
   const handleLogin = (e: React.FormEvent): void => {
     e.preventDefault();
-    const { loginEmail, loginPassword, selectedAddress } = formData;
+    const { loginPassword, selectedUser } = formData;
     
-    const user = users.find(u => 
-      u.email === loginEmail && u.password === loginPassword
-    );
+    // Find user by selected value (email)
+    const user = users.find(u => u.email === selectedUser);
     
-    if (user) {
+    if (!user) {
+      showAlert('Please select a valid user from the list or enter a valid email', 'danger');
+      return;
+    }
+    
+    // Check if user is locked
+    if (isUserLocked(user)) {
+      const remainingTime = Math.ceil((user.lockUntil! - Date.now()) / 1000);
+      showAlert(`Account is locked. Please try again in ${remainingTime} seconds`, 'danger');
+      return;
+    }
+    
+    // Check password
+    if (user.password === loginPassword) {
+      // Successful login - reset attempts
+      setUsers(prev => prev.map(u => {
+        if (u.id === user.id) {
+          return {
+            ...u,
+            loginAttempts: 0,
+            lockUntil: 0
+          };
+        }
+        return u;
+      }));
+      
       setCurrentUser(user);
       localStorage.setItem('currentUser', JSON.stringify(user));
       showAlert('Login successful!', 'success');
       setCurrentPage('home');
-      setFormData(prev => ({ ...prev, loginEmail: '', loginPassword: '', selectedAddress: '' }));
+      setFormData(prev => ({ ...prev, loginPassword: '', selectedUser: '' }));
     } else {
-      showAlert('Invalid email or password', 'danger');
+      // Failed login - increment attempts
+      const newAttempts = (user.loginAttempts || 0) + 1;
+      let lockUntil = 0;
+      
+      if (newAttempts >= 3) {
+        lockUntil = Date.now() + 30000; // 30 seconds lock
+        showAlert('Too many failed attempts. Account locked for 30 seconds.', 'danger');
+      } else {
+        showAlert(`Incorrect password. ${3 - newAttempts} attempts remaining.`, 'danger');
+      }
+      
+      setUsers(prev => prev.map(u => {
+        if (u.id === user.id) {
+          return {
+            ...u,
+            loginAttempts: newAttempts,
+            lockUntil: lockUntil
+          };
+        }
+        return u;
+      }));
     }
   };
 
@@ -406,7 +487,9 @@ function App() {
       companyName: registerUserType === 'company' ? registerCompanyName : '',
       lat: 9.0320 + (Math.random() * 0.05 - 0.025),
       lng: 38.7469 + (Math.random() * 0.05 - 0.025),
-      registered: new Date().toISOString().split('T')[0]
+      registered: new Date().toISOString().split('T')[0],
+      loginAttempts: 0,
+      lockUntil: 0
     };
     
     setUsers(prev => [...prev, newUser]);
@@ -659,7 +742,42 @@ function App() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>): void => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // If selectedUser changes, check if it's a registered email and show lock status
+    if (name === 'selectedUser' && value) {
+      const user = users.find(u => u.email === value);
+      if (user && isUserLocked(user)) {
+        const remainingTime = Math.ceil((user.lockUntil! - Date.now()) / 1000);
+        showAlert(`This account is currently locked. Please try again in ${remainingTime} seconds.`, 'warning', 3000);
+      }
+    }
   };
+
+  // Handle datalist input change
+  const handleDatalistInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+    const value = e.target.value;
+    setFormData(prev => ({ ...prev, selectedUser: value }));
+    
+    // Check if the entered value matches a user
+    const user = users.find(u => u.email === value);
+    if (user && isUserLocked(user)) {
+      const remainingTime = Math.ceil((user.lockUntil! - Date.now()) / 1000);
+      showAlert(`This account is currently locked. Please try again in ${remainingTime} seconds.`, 'warning', 3000);
+    }
+  };
+
+  // Check and reset locked users periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      users.forEach(user => {
+        if (user.lockUntil && user.lockUntil <= Date.now()) {
+          resetLoginAttempts(user.id);
+        }
+      });
+    }, 1000); // Check every second
+    
+    return () => clearInterval(interval);
+  }, [users]);
 
   // Render Header
   const renderHeader = () => (
@@ -872,73 +990,107 @@ function App() {
     );
   };
 
-  const renderLogin = () => (
-    <main className="main-content">
-      <div className="auth-container">
-        <div className="auth-card">
-          <div className="auth-header">
-            <h2>Welcome Back</h2>
-            <p>Login to your account</p>
-          </div>
-          <div className="auth-body">
-            <form onSubmit={handleLogin}>
-              <div className="form-group">
-                <label className="form-label">Email Address</label>
-                <input 
-                  type="email" 
-                  className="form-input" 
-                  name="loginEmail"
-                  value={formData.loginEmail}
-                  onChange={handleInputChange}
-                  required 
-                  placeholder="Enter your email"
-                />
-              </div>
+  const renderLogin = () => {
+    // Get selected user details
+    const selectedUser = users.find(u => u.email === formData.selectedUser);
+    const isLocked = selectedUser ? isUserLocked(selectedUser) : false;
+    const remainingTime = selectedUser && selectedUser.lockUntil 
+      ? Math.ceil((selectedUser.lockUntil - Date.now()) / 1000)
+      : 0;
+    
+    return (
+      <main className="main-content">
+        <div className="auth-container">
+          <div className="auth-card">
+            <div className="auth-header">
+              <h2>Welcome Back</h2>
+              <p>Login to your account</p>
+            </div>
+            <div className="auth-body">
+              <form onSubmit={handleLogin}>
+                <div className="form-group">
+                  <label className="form-label">Select or Enter Email</label>
+                  <div className="hybrid-input-container">
+                    <input
+                      list="userList"
+                      className="form-input hybrid-input"
+                      name="selectedUser"
+                      value={formData.selectedUser}
+                      onChange={handleDatalistInputChange}
+                      required
+                      placeholder="Select user or type email"
+                      disabled={isLocked}
+                    />
+                    <datalist id="userList">
+                      {users.map(user => (
+                        <option 
+                          key={user.id} 
+                          value={user.email}
+                        >
+                          {user.name} - {user.email} ({user.userType === 'company' ? 'Supplier' : 'Customer'})
+                        </option>
+                      ))}
+                    </datalist>
+                    <div className="input-hint">
+                      <i className="fas fa-info-circle"></i>
+                      Select from list or type your email
+                    </div>
+                  </div>
+                  
+                  {selectedUser && isLocked && (
+                    <div className="alert alert-warning mt-1">
+                      <i className="fas fa-lock"></i>
+                      Account locked. Please try again in {remainingTime > 0 ? remainingTime : 0} seconds.
+                    </div>
+                  )}
+                  
+                  {selectedUser && !isLocked && selectedUser.loginAttempts > 0 && (
+                    <div className="alert alert-info mt-1">
+                      <i className="fas fa-exclamation-triangle"></i>
+                      {selectedUser.loginAttempts} failed attempt(s). {3 - selectedUser.loginAttempts} attempt(s) remaining.
+                    </div>
+                  )}
+                </div>
+                
+                {formData.selectedUser && !isLocked && (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label">Password for {selectedUser?.name}</label>
+                      <input 
+                        type="password" 
+                        className="form-input" 
+                        name="loginPassword"
+                        value={formData.loginPassword}
+                        onChange={handleInputChange}
+                        required 
+                        placeholder="Enter your password"
+                        autoComplete="current-password"
+                      />
+                    </div>
+                    
+                    <button type="submit" className="btn-submit" disabled={isLocked}>
+                      <i className="fas fa-sign-in-alt"></i> Login
+                    </button>
+                  </>
+                )}
+                
+                {!formData.selectedUser && (
+                  <div className="alert alert-info">
+                    <i className="fas fa-info-circle"></i>
+                    Please select or enter your email address to continue
+                  </div>
+                )}
+              </form>
               
-              <div className="form-group">
-                <label className="form-label">Password</label>
-                <input 
-                  type="password" 
-                  className="form-input" 
-                  name="loginPassword"
-                  value={formData.loginPassword}
-                  onChange={handleInputChange}
-                  required 
-                  placeholder="Enter your password"
-                />
+              <div className="text-center mt-2">
+                <p>Don't have an account? <a href="#" onClick={(e) => { e.preventDefault(); navigateTo('register'); }}>Register here</a></p>
               </div>
-
-              <div className="form-group">
-                <label className="form-label">Select Address (Optional)</label>
-                <select 
-                  className="form-select" 
-                  name="selectedAddress"
-                  value={formData.selectedAddress}
-                  onChange={handleInputChange}
-                >
-                  <option value="">Select from registered addresses</option>
-                  {users.map(user => (
-                    <option key={user.id} value={user.address}>
-                      {user.name} - {user.address}
-                    </option>
-                  ))}
-                </select>
-                <small className="form-text">Select a registered user address to auto-fill</small>
-              </div>
-              
-              <button type="submit" className="btn-submit">
-                <i className="fas fa-sign-in-alt"></i> Login
-              </button>
-            </form>
-            
-            <div className="text-center mt-2">
-              <p>Don't have an account? <a href="#" onClick={(e) => { e.preventDefault(); navigateTo('register'); }}>Register here</a></p>
             </div>
           </div>
         </div>
-      </div>
-    </main>
-  );
+      </main>
+    );
+  };
 
   const renderRegister = () => (
     <main className="main-content">
@@ -2038,6 +2190,39 @@ function App() {
     </footer>
   );
 
+  // Add CSS for hybrid input
+  const addHybridInputStyles = () => {
+    return `
+      <style>
+        .hybrid-input-container {
+          position: relative;
+        }
+        
+        .hybrid-input {
+          width: 100%;
+          padding-right: 40px;
+        }
+        
+        .input-hint {
+          position: absolute;
+          right: 10px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: var(--gray);
+          font-size: 0.85rem;
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          pointer-events: none;
+        }
+        
+        .hybrid-input:focus + .input-hint {
+          opacity: 0.7;
+        }
+      </style>
+    `;
+  };
+
   // Render current page
   const renderCurrentPage = () => {
     switch (currentPage) {
@@ -2062,6 +2247,7 @@ function App() {
       {renderAlert()}
       {renderCurrentPage()}
       {renderFooter()}
+      <div dangerouslySetInnerHTML={{ __html: addHybridInputStyles() }} />
     </div>
   );
 }
