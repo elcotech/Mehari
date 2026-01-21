@@ -91,6 +91,32 @@ interface FormData {
   orderAddress: string;
 }
 
+// Ethiopian Regions/States
+const ETHIOPIAN_REGIONS = [
+  'Addis Ababa', 'Afar', 'Amhara', 'Benishangul-Gumuz', 'Dire Dawa', 
+  'Gambela', 'Harari', 'Oromia', 'Somali', 'Southern Nations, Nationalities, and Peoples\' Region', 
+  'Tigray', 'Sidama', 'South West Ethiopia Peoples\' Region'
+];
+
+// Measurement units
+const MEASUREMENT_UNITS = [
+  'Kilogram (KG)', 'Gram (g)', 'Liter (L)', 'Milliliter (mL)', 
+  'Meter (m)', 'Centimeter (cm)', 'Millimeter (mm)', 'Square Meter (m²)', 
+  'Cubic Meter (m³)', 'Piece', 'Box', 'Bag', 'Carton', 'Roll', 
+  'Sheet', 'Bundle', 'Pair', 'Set', 'Ton', 'Quintal'
+];
+
+// Departments/Categories for Ethiopia
+const DEPARTMENTS = [
+  'Agriculture', 'Construction', 'Manufacturing', 'Healthcare', 
+  'Education', 'Transportation', 'Energy', 'Information Technology',
+  'Textile & Apparel', 'Food & Beverage', 'Pharmaceuticals', 'Mining',
+  'Tourism', 'Real Estate', 'Telecommunications', 'Banking & Finance',
+  'Government', 'NGO', 'Retail', 'Wholesale', 'Logistics', 'Automotive',
+  'Electronics', 'Chemical', 'Plastic', 'Metal Works', 'Wood & Furniture',
+  'Printing & Packaging', 'Water & Sanitation', 'Environmental'
+];
+
 function App() {
   // State Management with proper types
   const [currentPage, setCurrentPage] = useState<string>('home');
@@ -123,6 +149,10 @@ function App() {
     }
     return [];
   });
+  const [tins, setTins] = useState<Array<{id: string, userId: string, tinNumber: string, registeredDate: string, businessType: string}>>(() => {
+    const savedTins = localStorage.getItem('tins');
+    return savedTins ? JSON.parse(savedTins) : [];
+  });
   const [searchResults, setSearchResults] = useState<Array<Material & {company?: Company, totalCost?: number, estimatedTransport?: number}>>([]);
   const [alert, setAlert] = useState<Alert | null>(null);
   const [formData, setFormData] = useState<FormData>({
@@ -149,6 +179,18 @@ function App() {
     orderQuantity: '',
     orderAddress: '',
   });
+  
+  // New state for TIN registration
+  const [tinData, setTinData] = useState({
+    tinNumber: '',
+    businessName: '',
+    businessType: '',
+    region: '',
+    woreda: '',
+    kebele: '',
+    businessAddress: '',
+    registrationDate: new Date().toISOString().split('T')[0]
+  });
 
   // Initialize with sample data
   useEffect(() => {
@@ -160,7 +202,7 @@ function App() {
           email: 'meharinageb@gmail.com',
           password: 'password123',
           userType: 'company',
-          companyName: 'Mehari Construction Supplies',
+          companyName: 'Mehari General Supplies',
           phone: '+251909919154',
           address: 'Bole, Addis Ababa',
           lat: 8.9806,
@@ -194,8 +236,8 @@ function App() {
         {
           id: 'comp1',
           userId: 'user1',
-          name: 'Mehari Construction Supplies',
-          description: 'Premium construction materials supplier',
+          name: 'Mehari General Supplies',
+          description: 'Premium supplier for various industrial and consumer goods',
           location: 'Bole, Addis Ababa',
           lat: 8.9806,
           lng: 38.7578,
@@ -206,8 +248,8 @@ function App() {
         {
           id: 'comp2',
           userId: 'user3',
-          name: 'Ethio Build Materials',
-          description: 'Building materials wholesale',
+          name: 'Ethio Industrial Supplies',
+          description: 'Industrial materials wholesale',
           location: 'Merkato, Addis Ababa',
           lat: 9.0300,
           lng: 38.7500,
@@ -218,8 +260,8 @@ function App() {
         {
           id: 'comp3',
           userId: 'user4',
-          name: 'Addis Cement & Steel',
-          description: 'Specialized in cement and steel products',
+          name: 'Addis Pharmaceuticals & Medical Supplies',
+          description: 'Specialized in medical and pharmaceutical products',
           location: 'Kaliti, Addis Ababa',
           lat: 8.8500,
           lng: 38.7200,
@@ -238,7 +280,7 @@ function App() {
           id: 'mat1',
           companyId: 'comp1',
           name: 'Portland Cement',
-          category: 'cement',
+          category: 'Construction',
           description: 'High quality Portland cement for construction',
           price: 850,
           unit: '50kg bag',
@@ -250,40 +292,40 @@ function App() {
         {
           id: 'mat2',
           companyId: 'comp1',
-          name: 'Steel Rebar',
-          category: 'steel',
-          description: 'Grade 60 steel reinforcement bars',
-          price: 12000,
-          unit: 'ton',
-          quantity: 45,
-          minOrder: 1,
-          transportCost: 20,
+          name: 'Medical Gloves',
+          category: 'Healthcare',
+          description: 'Disposable latex-free medical gloves',
+          price: 120,
+          unit: 'Box (100 pcs)',
+          quantity: 1000,
+          minOrder: 5,
+          transportCost: 8,
           rating: 4.7
         },
         {
           id: 'mat3',
           companyId: 'comp2',
-          name: 'Clay Bricks',
-          category: 'bricks',
-          description: 'Standard size clay bricks',
-          price: 4.5,
-          unit: 'piece',
-          quantity: 10000,
-          minOrder: 100,
+          name: 'Fertilizer Urea',
+          category: 'Agriculture',
+          description: 'Agricultural grade urea fertilizer',
+          price: 950,
+          unit: '50kg bag',
+          quantity: 2000,
+          minOrder: 20,
           transportCost: 12,
           rating: 4.3
         },
         {
           id: 'mat4',
           companyId: 'comp3',
-          name: 'Crushed Stone',
-          category: 'aggregates',
-          description: '20mm crushed stone for concrete',
-          price: 650,
-          unit: 'cubic meter',
-          quantity: 120,
-          minOrder: 5,
-          transportCost: 18,
+          name: 'Desktop Computers',
+          category: 'Information Technology',
+          description: 'Dell Optiplex desktop computers',
+          price: 25000,
+          unit: 'Piece',
+          quantity: 50,
+          minOrder: 1,
+          transportCost: 200,
           rating: 4.6
         }
       ];
@@ -311,6 +353,20 @@ function App() {
       setOrders(sampleOrders);
       localStorage.setItem('orders', JSON.stringify(sampleOrders));
     }
+    
+    if (tins.length === 0) {
+      const sampleTins = [
+        {
+          id: 'tin1',
+          userId: 'user1',
+          tinNumber: 'ET0001234567',
+          registeredDate: '2020-05-15',
+          businessType: 'General Trading'
+        }
+      ];
+      setTins(sampleTins);
+      localStorage.setItem('tins', JSON.stringify(sampleTins));
+    }
   }, []);
 
   // Save to localStorage when data changes
@@ -329,6 +385,10 @@ function App() {
   useEffect(() => {
     localStorage.setItem('users', JSON.stringify(users));
   }, [users]);
+  
+  useEffect(() => {
+    localStorage.setItem('tins', JSON.stringify(tins));
+  }, [tins]);
 
   // Utility Functions with proper types
   const formatCurrency = (amount: number): string => {
@@ -376,6 +436,7 @@ function App() {
   const getCompanyById = (id: string): Company | undefined => companies.find(c => c.id === id);
   const getUserById = (id: string): User | undefined => users.find(u => u.id === id);
   const getCompanyByUserId = (userId: string): Company | undefined => companies.find(c => c.userId === userId);
+  const getTinByUserId = (userId: string) => tins.find(t => t.userId === userId);
 
   // Check if user is locked
   const isUserLocked = (user: User): boolean => {
@@ -397,6 +458,46 @@ function App() {
       }
       return user;
     }));
+  };
+
+  // TIN Registration Handler
+  const handleTinRegistration = (e: React.FormEvent): void => {
+    e.preventDefault();
+    
+    if (!currentUser) {
+      showAlert('Please login to register TIN', 'danger');
+      return;
+    }
+    
+    // Check if user already has TIN
+    const existingTin = getTinByUserId(currentUser.id);
+    if (existingTin) {
+      showAlert('You already have a registered TIN', 'warning');
+      return;
+    }
+    
+    const newTin = {
+      id: 'tin' + (tins.length + 1),
+      userId: currentUser.id,
+      tinNumber: tinData.tinNumber,
+      registeredDate: tinData.registrationDate,
+      businessType: tinData.businessType
+    };
+    
+    setTins(prev => [...prev, newTin]);
+    showAlert('TIN registered successfully!', 'success');
+    
+    // Reset form
+    setTinData({
+      tinNumber: '',
+      businessName: '',
+      businessType: '',
+      region: '',
+      woreda: '',
+      kebele: '',
+      businessAddress: '',
+      registrationDate: new Date().toISOString().split('T')[0]
+    });
   };
 
   // Authentication
@@ -766,6 +867,12 @@ function App() {
     }
   };
 
+  // Handle TIN form input changes
+  const handleTinInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>): void => {
+    const { name, value } = e.target;
+    setTinData(prev => ({ ...prev, [name]: value }));
+  };
+
   // Check and reset locked users periodically
   useEffect(() => {
     const interval = setInterval(() => {
@@ -785,11 +892,11 @@ function App() {
       <div className="header-content">
         <div className="logo">
           <div className="logo-icon">
-            <i className="fas fa-hard-hat"></i>
+            <i className="fas fa-boxes"></i>
           </div>
           <div className="logo-text">
-            <h1>Mehari SupplyChain AI</h1>
-            <p>AI-Driven Construction Material Platform</p>
+            <h1>EthioSupply AI</h1>
+            <p>AI-Driven Supply Chain Platform for Ethiopia</p>
           </div>
         </div>
         
@@ -816,6 +923,8 @@ function App() {
 
   const renderUserNav = () => {
     const isCompany = currentUser?.userType === 'company';
+    const userTin = getTinByUserId(currentUser?.id || '');
+    
     return (
       <>
         <a href="#" className={`nav-link ${currentPage === 'home' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('home'); }}>
@@ -828,7 +937,7 @@ function App() {
               <i className="fas fa-tachometer-alt"></i> Dashboard
             </a>
             <a href="#" className={`nav-link ${currentPage === 'add-material' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('add-material'); }}>
-              <i className="fas fa-box"></i> Add Material
+              <i className="fas fa-box"></i> Add Product
             </a>
             <a href="#" className={`nav-link ${currentPage === 'analytics' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('analytics'); }}>
               <i className="fas fa-chart-line"></i> Analytics
@@ -855,13 +964,22 @@ function App() {
           <i className="fas fa-map-marked-alt"></i> Supplier Map
         </a>
         
+        {isCompany && !userTin && (
+          <a href="#" className={`nav-link ${currentPage === 'tin-registration' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('tin-registration'); }}>
+            <i className="fas fa-file-contract"></i> Register TIN
+          </a>
+        )}
+        
         <div className="user-info">
           <div className="user-avatar">
             {currentUser?.name?.charAt(0).toUpperCase()}
           </div>
           <div>
             <div className="user-name">{currentUser?.name}</div>
-            <div className="user-type">{currentUser?.userType === 'company' ? 'Supplier' : 'Customer'}</div>
+            <div className="user-type">
+              {currentUser?.userType === 'company' ? 'Supplier' : 'Customer'}
+              {userTin && <span className="tin-badge">TIN: {userTin.tinNumber}</span>}
+            </div>
           </div>
           <button className="btn-logout" onClick={handleLogout}>
             <i className="fas fa-sign-out-alt"></i> Logout
@@ -902,9 +1020,9 @@ function App() {
     return (
       <main className="main-content">
         <section className="home-hero">
-          <h1>AI-Driven Construction Supply Chain Platform</h1>
-          <p>Revolutionizing material procurement in Ethiopia with artificial intelligence</p>
-          <p className="hero-subtitle">Optimizing construction material supply chains in Addis Ababa through AI-powered price forecasting, GIS-based supplier mapping, and real-time logistics optimization</p>
+          <h1>AI-Driven Supply Chain Platform for Ethiopia</h1>
+          <p>Connecting businesses across all departments and regions in Ethiopia</p>
+          <p className="hero-subtitle">Optimizing supply chains across Agriculture, Construction, Healthcare, Manufacturing, and more through AI-powered solutions</p>
           
           {currentUser ? (
             <div className="cta-buttons">
@@ -914,7 +1032,7 @@ function App() {
                 </button>
               ) : (
                 <button className="btn btn-primary" onClick={() => navigateTo('search-materials')}>
-                  <i className="fas fa-search"></i> Find Materials
+                  <i className="fas fa-search"></i> Find Products
                 </button>
               )}
               <button className="btn btn-secondary" onClick={() => navigateTo('supplier-map')}>
@@ -936,7 +1054,7 @@ function App() {
         <div className="stats-grid">
           <div className="stat-card">
             <div className="stat-value">{stats.totalMaterials}+</div>
-            <div className="stat-label">Construction Materials</div>
+            <div className="stat-label">Products Listed</div>
           </div>
           <div className="stat-card">
             <div className="stat-value">{stats.totalCompanies}</div>
@@ -959,7 +1077,7 @@ function App() {
               <i className="fas fa-robot"></i>
             </div>
             <h3>AI Price Forecasting</h3>
-            <p>Predict future material prices using machine learning algorithms based on historical data and market trends</p>
+            <p>Predict future product prices using machine learning algorithms based on historical data and market trends</p>
           </div>
           
           <div className="feature-card">
@@ -967,7 +1085,7 @@ function App() {
               <i className="fas fa-map-marked-alt"></i>
             </div>
             <h3>GIS Supplier Mapping</h3>
-            <p>Interactive map showing supplier locations with real-time transport cost calculations</p>
+            <p>Interactive map showing supplier locations across all Ethiopian regions with real-time transport cost calculations</p>
           </div>
           
           <div className="feature-card">
@@ -980,11 +1098,20 @@ function App() {
           
           <div className="feature-card">
             <div className="feature-icon">
-              <i className="fas fa-chart-line"></i>
+              <i className="fas fa-file-contract"></i>
             </div>
-            <h3>Real-time Analytics</h3>
-            <p>Dashboard with key performance indicators and market insights for suppliers</p>
+            <h3>TIN Registration</h3>
+            <p>Register and manage Taxpayer Identification Numbers for Ethiopian businesses</p>
           </div>
+        </div>
+        
+        <h2 className="text-center mb-3">Departments Served</h2>
+        <div className="departments-grid">
+          {DEPARTMENTS.slice(0, 12).map((dept, index) => (
+            <div className="department-badge" key={index}>
+              <i className="fas fa-industry"></i> {dept}
+            </div>
+          ))}
         </div>
       </main>
     );
@@ -1098,7 +1225,7 @@ function App() {
         <div className="auth-card">
           <div className="auth-header">
             <h2>Create Account</h2>
-            <p>Join Mehari Construction Platform</p>
+            <p>Join EthioSupply AI Platform</p>
           </div>
           <div className="auth-body">
             <div className="auth-tabs">
@@ -1227,6 +1354,7 @@ function App() {
     const company = getCompanyByUserId(currentUser.id);
     const companyMaterials = materials.filter(m => m.companyId === company?.id);
     const companyOrders = orders.filter(o => o.companyId === company?.id);
+    const userTin = getTinByUserId(currentUser.id);
     
     const stats = {
       totalMaterials: companyMaterials.length,
@@ -1239,16 +1367,22 @@ function App() {
       <main className="main-content">
         <div className="dashboard-header">
           <div className="dashboard-title">
-            <i className="fas fa-hard-hat"></i>
+            <i className="fas fa-building"></i>
             <h1>Supplier Dashboard</h1>
           </div>
-          <p className="dashboard-subtitle">Welcome back, {company?.name}. Manage your materials, orders, and analytics.</p>
+          <p className="dashboard-subtitle">Welcome back, {company?.name}. Manage your products, orders, and analytics.</p>
+          {userTin && (
+            <div className="tin-display">
+              <i className="fas fa-file-contract"></i>
+              <span>TIN: {userTin.tinNumber} | Registered: {formatDate(userTin.registeredDate)}</span>
+            </div>
+          )}
         </div>
         
         <div className="dashboard-grid">
           <div className="dashboard-card">
             <div className="card-header">
-              <h3 className="card-title">Total Materials</h3>
+              <h3 className="card-title">Total Products</h3>
               <div className="card-icon"><i className="fas fa-box"></i></div>
             </div>
             <div className="stat-value">{stats.totalMaterials}</div>
@@ -1283,9 +1417,19 @@ function App() {
           </div>
         </div>
         
+        {!userTin && (
+          <div className="alert alert-warning">
+            <i className="fas fa-exclamation-triangle"></i>
+            <strong>Important:</strong> You haven't registered your TIN yet. 
+            <button className="btn btn-primary btn-sm ml-2" onClick={() => navigateTo('tin-registration')}>
+              <i className="fas fa-file-contract"></i> Register TIN Now
+            </button>
+          </div>
+        )}
+        
         <div className="card">
           <div className="card-header">
-            <h3 className="card-title">Your Materials</h3>
+            <h3 className="card-title">Your Products</h3>
             <button className="btn btn-primary" onClick={() => navigateTo('add-material')}>
               <i className="fas fa-plus"></i> Add New
             </button>
@@ -1294,8 +1438,8 @@ function App() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Material</th>
-                  <th>Category</th>
+                  <th>Product</th>
+                  <th>Department</th>
                   <th>Price</th>
                   <th>Quantity</th>
                   <th>Status</th>
@@ -1362,7 +1506,7 @@ function App() {
             <i className="fas fa-user"></i>
             <h1>Customer Dashboard</h1>
           </div>
-          <p className="dashboard-subtitle">Welcome back, {currentUser.name}. Find materials, track orders, and more.</p>
+          <p className="dashboard-subtitle">Welcome back, {currentUser.name}. Find products, track orders, and more.</p>
         </div>
         
         <div className="dashboard-grid">
@@ -1407,7 +1551,7 @@ function App() {
           <div className="card-header">
             <h3 className="card-title">Recent Orders</h3>
             <button className="btn btn-primary" onClick={() => navigateTo('search-materials')}>
-              <i className="fas fa-search"></i> Find Materials
+              <i className="fas fa-search"></i> Find Products
             </button>
           </div>
           <div className="table-responsive">
@@ -1415,7 +1559,7 @@ function App() {
               <thead>
                 <tr>
                   <th>Order ID</th>
-                  <th>Material</th>
+                  <th>Product</th>
                   <th>Supplier</th>
                   <th>Amount</th>
                   <th>Status</th>
@@ -1449,7 +1593,7 @@ function App() {
         
         <div className="card">
           <div className="card-header">
-            <h3 className="card-title">Recommended Materials</h3>
+            <h3 className="card-title">Recommended Products</h3>
           </div>
           <div className="materials-grid">
             {materials.slice(0, 4).map((material: Material) => {
@@ -1507,10 +1651,10 @@ function App() {
   const renderAddMaterial = () => (
     <main className="main-content">
       <div className="form-container">
-        <h2 className="form-title">Add New Material</h2>
+        <h2 className="form-title">Add New Product</h2>
         <form onSubmit={handleAddMaterial}>
           <div className="form-group">
-            <label className="form-label">Material Name</label>
+            <label className="form-label">Product Name</label>
             <input 
               type="text" 
               className="form-input" 
@@ -1518,13 +1662,13 @@ function App() {
               value={formData.materialName}
               onChange={handleInputChange}
               required 
-              placeholder="e.g., Portland Cement"
+              placeholder="e.g., Portland Cement, Medical Gloves, Fertilizer"
             />
           </div>
           
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Category</label>
+              <label className="form-label">Department/Category</label>
               <select 
                 className="form-select" 
                 name="materialCategory"
@@ -1532,34 +1676,42 @@ function App() {
                 onChange={handleInputChange}
                 required
               >
-                <option value="">Select Category</option>
-                <option value="cement">Cement</option>
-                <option value="steel">Steel</option>
-                <option value="bricks">Bricks</option>
-                <option value="aggregates">Aggregates</option>
-                <option value="timber">Timber</option>
-                <option value="equipment">Equipment</option>
-                <option value="other">Other</option>
+                <option value="">Select Department</option>
+                {DEPARTMENTS.map(dept => (
+                  <option key={dept} value={dept}>{dept}</option>
+                ))}
               </select>
             </div>
             
             <div className="form-group">
-              <label className="form-label">Unit</label>
-              <input 
-                type="text" 
-                className="form-input" 
-                name="materialUnit"
-                value={formData.materialUnit}
-                onChange={handleInputChange}
-                required 
-                placeholder="e.g., 50kg bag, ton, piece"
-              />
+              <label className="form-label">Unit of Measurement</label>
+              <div className="unit-selection">
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  name="materialUnit"
+                  value={formData.materialUnit}
+                  onChange={handleInputChange}
+                  required 
+                  placeholder="e.g., KG, Liter, Meter"
+                  list="unitList"
+                />
+                <datalist id="unitList">
+                  {MEASUREMENT_UNITS.map(unit => (
+                    <option key={unit} value={unit}>{unit}</option>
+                  ))}
+                </datalist>
+                <div className="unit-hint">
+                  <i className="fas fa-info-circle"></i>
+                  <small>Type or select from common units</small>
+                </div>
+              </div>
             </div>
           </div>
           
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Price per Unit</label>
+              <label className="form-label">Price per Unit (ETB)</label>
               <input 
                 type="number" 
                 className="form-input" 
@@ -1610,57 +1762,60 @@ function App() {
               value={formData.materialDescription}
               onChange={handleInputChange}
               required 
-              placeholder="Describe the material, specifications, etc."
+              placeholder="Describe the product, specifications, quality, etc."
             ></textarea>
           </div>
           
-          <button type="submit" className="btn-submit">
-            <i className="fas fa-save"></i> Add Material
-          </button>
+          <div className="form-actions">
+            <button type="submit" className="btn-submit">
+              <i className="fas fa-save"></i> Add Product
+            </button>
+            <button type="button" className="btn-secondary" onClick={() => navigateTo('company-dashboard')}>
+              <i className="fas fa-times"></i> Cancel
+            </button>
+          </div>
         </form>
       </div>
     </main>
   );
 
   const renderSearchMaterials = () => {
-    const categories = ['all', 'cement', 'steel', 'bricks', 'aggregates', 'timber', 'equipment', 'other'];
-    
     return (
       <main className="main-content">
         <div className="dashboard-header">
           <div className="dashboard-title">
             <i className="fas fa-search"></i>
-            <h1>Find Construction Materials</h1>
+            <h1>Find Products</h1>
           </div>
-          <p className="dashboard-subtitle">Search for materials, compare prices, and calculate transport costs</p>
+          <p className="dashboard-subtitle">Search for products across all departments, compare prices, and calculate transport costs</p>
         </div>
         
         <div className="search-container">
           <form onSubmit={handleSearch}>
             <div className="search-form">
               <div className="form-group">
-                <label className="form-label">Search</label>
+                <label className="form-label">Search Products</label>
                 <input 
                   type="text" 
                   className="form-input" 
                   name="searchQuery"
                   value={formData.searchQuery}
                   onChange={handleInputChange}
-                  placeholder="What material are you looking for?"
+                  placeholder="What product are you looking for?"
                 />
               </div>
               
               <div className="form-group">
-                <label className="form-label">Category</label>
+                <label className="form-label">Department</label>
                 <select 
                   className="form-select" 
                   name="searchCategory"
                   value={formData.searchCategory}
                   onChange={handleInputChange}
                 >
-                  <option value="all">All Categories</option>
-                  {categories.filter(c => c !== 'all').map(cat => (
-                    <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>
+                  <option value="all">All Departments</option>
+                  {DEPARTMENTS.map(dept => (
+                    <option key={dept} value={dept}>{dept}</option>
                   ))}
                 </select>
               </div>
@@ -1692,7 +1847,7 @@ function App() {
             <div className="card-header">
               <h3 className="card-title">Search Results ({searchResults.length} found)</h3>
               <div>
-                <span className="badge badge-primary">Sorted by: Total Cost (Material + Transport)</span>
+                <span className="badge badge-primary">Sorted by: Total Cost (Product + Transport)</span>
               </div>
             </div>
             <div className="materials-grid">
@@ -1715,7 +1870,7 @@ function App() {
                       <div className="material-stats">
                         <div className="stat-item">
                           <div className="value">{formatCurrency(item.price)}</div>
-                          <div className="label">Material Cost</div>
+                          <div className="label">Product Cost</div>
                         </div>
                         <div className="stat-item">
                           <div className="value">~{formatCurrency(item.estimatedTransport || 0)}</div>
@@ -1748,7 +1903,7 @@ function App() {
         ) : (
           <div className="card">
             <div className="card-header">
-              <h3 className="card-title">Available Materials</h3>
+              <h3 className="card-title">Available Products</h3>
             </div>
             <div className="materials-grid">
               {materials.map((material: Material) => {
@@ -1828,7 +1983,7 @@ function App() {
             <thead>
               <tr>
                 <th>Order ID</th>
-                <th>Material</th>
+                <th>Product</th>
                 {isCompany ? <th>Customer</th> : <th>Supplier</th>}
                 <th>Quantity</th>
                 <th>Amount</th>
@@ -1900,7 +2055,7 @@ function App() {
           <i className="fas fa-chart-line"></i>
           <h1>Analytics Dashboard</h1>
         </div>
-        <p className="dashboard-subtitle">AI-powered insights and market trends for construction materials</p>
+        <p className="dashboard-subtitle">AI-powered insights and market trends for Ethiopian businesses</p>
       </div>
       
       <div className="dashboard-grid">
@@ -1910,25 +2065,25 @@ function App() {
             <div className="card-icon"><i className="fas fa-chart-bar"></i></div>
           </div>
           <div className="stat-value">+5.2%</div>
-          <p className="stat-label">Cement price increase this month</p>
+          <p className="stat-label">Overall price increase this month</p>
         </div>
         
         <div className="dashboard-card">
           <div className="card-header">
-            <h3 className="card-title">Material Distribution</h3>
+            <h3 className="card-title">Product Distribution</h3>
             <div className="card-icon"><i className="fas fa-chart-pie"></i></div>
           </div>
           <div className="stat-value">{materials.length}</div>
-          <p className="stat-label">Total materials listed</p>
+          <p className="stat-label">Total products listed</p>
         </div>
         
         <div className="dashboard-card">
           <div className="card-header">
-            <h3 className="card-title">Top Category</h3>
+            <h3 className="card-title">Top Department</h3>
             <div className="card-icon"><i className="fas fa-star"></i></div>
           </div>
-          <div className="stat-value">Cement</div>
-          <p className="stat-label">Most demanded material</p>
+          <div className="stat-value">Construction</div>
+          <p className="stat-label">Most active department</p>
         </div>
         
         <div className="dashboard-card">
@@ -1947,20 +2102,20 @@ function App() {
           <div className="badge badge-primary">Next 30 Days</div>
         </div>
         <div className="p-2">
-          <p><strong>AI Insights:</strong> Cement prices expected to increase by 5-8% due to rising demand. Steel prices stabilizing. Consider stocking aggregates before rainy season.</p>
+          <p><strong>AI Insights:</strong> Construction materials expected to increase by 5-8% due to rising demand. Agricultural supplies stabilizing. Consider stocking before rainy season.</p>
         </div>
       </div>
       
       <div className="card">
         <div className="card-header">
-          <h3 className="card-title">Top Performing Materials</h3>
+          <h3 className="card-title">Top Performing Products</h3>
         </div>
         <div className="table-responsive">
           <table className="data-table">
             <thead>
               <tr>
-                <th>Material</th>
-                <th>Category</th>
+                <th>Product</th>
+                <th>Department</th>
                 <th>Avg Price</th>
                 <th>Demand Trend</th>
                 <th>Profit Margin</th>
@@ -1970,27 +2125,27 @@ function App() {
             <tbody>
               <tr>
                 <td>Portland Cement</td>
-                <td><span className="badge badge-primary">Cement</span></td>
+                <td><span className="badge badge-primary">Construction</span></td>
                 <td>{formatCurrency(850)}</td>
                 <td><span className="badge badge-success">↑ 12%</span></td>
                 <td>25%</td>
                 <td><span className="badge badge-success">Increase Stock</span></td>
               </tr>
               <tr>
-                <td>Steel Rebar</td>
-                <td><span className="badge badge-primary">Steel</span></td>
-                <td>{formatCurrency(12000)}</td>
+                <td>Medical Gloves</td>
+                <td><span className="badge badge-primary">Healthcare</span></td>
+                <td>{formatCurrency(120)}</td>
+                <td><span className="badge badge-success">↑ 15%</span></td>
+                <td>30%</td>
+                <td><span className="badge badge-success">Increase Stock</span></td>
+              </tr>
+              <tr>
+                <td>Urea Fertilizer</td>
+                <td><span className="badge badge-primary">Agriculture</span></td>
+                <td>{formatCurrency(950)}</td>
                 <td><span className="badge badge-warning">→ Stable</span></td>
                 <td>18%</td>
                 <td><span className="badge badge-warning">Maintain Level</span></td>
-              </tr>
-              <tr>
-                <td>Clay Bricks</td>
-                <td><span className="badge badge-primary">Bricks</span></td>
-                <td>{formatCurrency(4.5)}</td>
-                <td><span className="badge badge-success">↑ 8%</span></td>
-                <td>22%</td>
-                <td><span className="badge badge-success">Increase Stock</span></td>
               </tr>
             </tbody>
           </table>
@@ -2006,21 +2161,21 @@ function App() {
           <i className="fas fa-map-marked-alt"></i>
           <h1>Supplier Map</h1>
         </div>
-        <p className="dashboard-subtitle">Interactive map showing material suppliers in Addis Ababa with transport cost calculations</p>
+        <p className="dashboard-subtitle">Interactive map showing suppliers across all Ethiopian regions with transport cost calculations</p>
       </div>
       
       <div className="map-container">
         <div className="map-placeholder">
           <i className="fas fa-map-marked-alt" style={{ fontSize: '4rem', color: 'var(--primary)', marginBottom: '1rem' }}></i>
           <h3>GIS Supplier Map</h3>
-          <p>Supplier locations would be displayed here with interactive markers</p>
+          <p>Supplier locations across Ethiopian regions would be displayed here with interactive markers</p>
           <p>Transport costs calculated based on distance from your location</p>
         </div>
       </div>
       
       <div className="card">
         <div className="card-header">
-          <h3 className="card-title">Suppliers by Location</h3>
+          <h3 className="card-title">Suppliers by Region</h3>
           <div className="badge badge-primary">{companies.length} Suppliers</div>
         </div>
         <div className="table-responsive">
@@ -2029,7 +2184,8 @@ function App() {
               <tr>
                 <th>Company</th>
                 <th>Location</th>
-                <th>Materials</th>
+                <th>Region</th>
+                <th>Products</th>
                 <th>Avg Price</th>
                 <th>Rating</th>
                 <th>Est. Transport Cost*</th>
@@ -2055,6 +2211,12 @@ function App() {
                   <tr key={company.id}>
                     <td><strong>{company.name}</strong></td>
                     <td>{company.location}</td>
+                    <td>
+                      {company.location.includes('Addis') ? 'Addis Ababa' :
+                       company.location.includes('Bole') ? 'Addis Ababa' :
+                       company.location.includes('Merkato') ? 'Addis Ababa' :
+                       company.location.includes('Kaliti') ? 'Addis Ababa' : 'Oromia'}
+                    </td>
                     <td>{companyMaterials.length} items</td>
                     <td>{formatCurrency(avgPrice)}</td>
                     <td>{company.rating || '4.5'}/5</td>
@@ -2079,7 +2241,7 @@ function App() {
           <i className="fas fa-chart-bar"></i>
           <h1>AI Price Forecasting</h1>
         </div>
-        <p className="dashboard-subtitle">Machine learning predictions for construction material prices in Addis Ababa</p>
+        <p className="dashboard-subtitle">Machine learning predictions for product prices across Ethiopian markets</p>
       </div>
       
       <div className="card">
@@ -2098,7 +2260,7 @@ function App() {
       <div className="dashboard-grid">
         <div className="dashboard-card">
           <div className="card-header">
-            <h3 className="card-title">Cement Forecast</h3>
+            <h3 className="card-title">Construction Forecast</h3>
             <div className="card-icon"><i className="fas fa-industry"></i></div>
           </div>
           <div className="stat-value">+5.2%</div>
@@ -2110,13 +2272,13 @@ function App() {
         
         <div className="dashboard-card">
           <div className="card-header">
-            <h3 className="card-title">Steel Forecast</h3>
-            <div className="card-icon"><i className="fas fa-drafting-compass"></i></div>
+            <h3 className="card-title">Agriculture Forecast</h3>
+            <div className="card-icon"><i className="fas fa-seedling"></i></div>
           </div>
-          <div className="stat-value">-1.8%</div>
-          <p className="stat-label">Expected price decrease</p>
+          <div className="stat-value">+3.5%</div>
+          <p className="stat-label">Expected price increase</p>
           <div className="mt-2">
-            <p><small><strong>Factors:</strong> Import stabilization, reduced global prices</small></p>
+            <p><small><strong>Factors:</strong> Planting season, fertilizer costs, weather patterns</small></p>
           </div>
         </div>
         
@@ -2140,38 +2302,251 @@ function App() {
         <div className="p-2">
           <div className="alert alert-info">
             <i className="fas fa-robot"></i>
-            <strong>AI Suggestion:</strong> Based on current trends, we recommend purchasing cement and bricks now before expected price increases in the coming month.
+            <strong>AI Suggestion:</strong> Based on current trends, we recommend purchasing construction materials and medical supplies now before expected price increases in the coming month.
           </div>
           <div className="alert alert-success">
             <i className="fas fa-lightbulb"></i>
-            <strong>Cost Optimization:</strong> Consider ordering from suppliers in Bole area for central Addis Ababa deliveries to minimize transport costs.
+            <strong>Cost Optimization:</strong> Consider ordering from suppliers in Addis Ababa for central Ethiopia deliveries to minimize transport costs.
           </div>
           <div className="alert alert-warning">
             <i className="fas fa-exclamation-triangle"></i>
-            <strong>Market Alert:</strong> Aggregate prices may fluctuate during rainy season (June-September). Plan procurement accordingly.
+            <strong>Market Alert:</strong> Agricultural product prices may fluctuate during rainy season (June-September). Plan procurement accordingly.
           </div>
         </div>
       </div>
     </main>
   );
 
+  const renderTinRegistration = () => {
+    const userTin = getTinByUserId(currentUser?.id || '');
+    
+    if (userTin) {
+      return (
+        <main className="main-content">
+          <div className="form-container">
+            <div className="tin-status-card">
+              <div className="tin-status-header">
+                <i className="fas fa-file-contract success"></i>
+                <h2>TIN Already Registered</h2>
+              </div>
+              <div className="tin-details">
+                <div className="tin-detail-item">
+                  <label>TIN Number:</label>
+                  <span className="tin-value">{userTin.tinNumber}</span>
+                </div>
+                <div className="tin-detail-item">
+                  <label>Registration Date:</label>
+                  <span className="tin-value">{formatDate(userTin.registeredDate)}</span>
+                </div>
+                <div className="tin-detail-item">
+                  <label>Business Type:</label>
+                  <span className="tin-value">{userTin.businessType}</span>
+                </div>
+                <div className="tin-detail-item">
+                  <label>Status:</label>
+                  <span className="badge badge-success">Active</span>
+                </div>
+              </div>
+              <div className="tin-actions">
+                <button className="btn btn-secondary" onClick={() => navigateTo('company-dashboard')}>
+                  <i className="fas fa-arrow-left"></i> Back to Dashboard
+                </button>
+              </div>
+            </div>
+          </div>
+        </main>
+      );
+    }
+    
+    if (!currentUser || currentUser.userType !== 'company') {
+      return (
+        <main className="main-content">
+          <div className="alert alert-danger">
+            <i className="fas fa-exclamation-circle"></i>
+            TIN registration is only available for registered companies/suppliers.
+          </div>
+        </main>
+      );
+    }
+    
+    return (
+      <main className="main-content">
+        <div className="form-container">
+          <h2 className="form-title">Register Taxpayer Identification Number (TIN)</h2>
+          <p className="form-subtitle">Register your business TIN for Ethiopian tax purposes</p>
+          
+          <form onSubmit={handleTinRegistration}>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">TIN Number *</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  name="tinNumber"
+                  value={tinData.tinNumber}
+                  onChange={handleTinInputChange}
+                  required 
+                  placeholder="ET0001234567"
+                  pattern="ET\d{10}"
+                  title="TIN must start with ET followed by 10 digits"
+                />
+                <small className="form-hint">Format: ET followed by 10 digits (e.g., ET0001234567)</small>
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">Business Name *</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  name="businessName"
+                  value={tinData.businessName}
+                  onChange={handleTinInputChange}
+                  required 
+                  placeholder="Your registered business name"
+                />
+              </div>
+            </div>
+            
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Business Type *</label>
+                <select 
+                  className="form-select" 
+                  name="businessType"
+                  value={tinData.businessType}
+                  onChange={handleTinInputChange}
+                  required
+                >
+                  <option value="">Select Business Type</option>
+                  <option value="Sole Proprietorship">Sole Proprietorship</option>
+                  <option value="Partnership">Partnership</option>
+                  <option value="Private Limited Company">Private Limited Company</option>
+                  <option value="Share Company">Share Company</option>
+                  <option value="Government Enterprise">Government Enterprise</option>
+                  <option value="NGO">NGO</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">Region *</label>
+                <select 
+                  className="form-select" 
+                  name="region"
+                  value={tinData.region}
+                  onChange={handleTinInputChange}
+                  required
+                >
+                  <option value="">Select Region</option>
+                  {ETHIOPIAN_REGIONS.map(region => (
+                    <option key={region} value={region}>{region}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Woreda</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  name="woreda"
+                  value={tinData.woreda}
+                  onChange={handleTinInputChange}
+                  placeholder="Enter woreda name"
+                />
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">Kebele</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  name="kebele"
+                  value={tinData.kebele}
+                  onChange={handleTinInputChange}
+                  placeholder="Enter kebele number"
+                />
+              </div>
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">Business Address *</label>
+              <input 
+                type="text" 
+                className="form-input" 
+                name="businessAddress"
+                value={tinData.businessAddress}
+                onChange={handleTinInputChange}
+                required 
+                placeholder="Full business address"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">Registration Date *</label>
+              <input 
+                type="date" 
+                className="form-input" 
+                name="registrationDate"
+                value={tinData.registrationDate}
+                onChange={handleTinInputChange}
+                required 
+              />
+            </div>
+            
+            <div className="form-actions">
+              <button type="submit" className="btn-submit">
+                <i className="fas fa-file-contract"></i> Register TIN
+              </button>
+              <button type="button" className="btn-secondary" onClick={() => navigateTo('company-dashboard')}>
+                <i className="fas fa-times"></i> Cancel
+              </button>
+            </div>
+          </form>
+          
+          <div className="tin-info-box">
+            <h4><i className="fas fa-info-circle"></i> About TIN Registration</h4>
+            <p>In Ethiopia, a Taxpayer Identification Number (TIN) is required for all businesses engaging in commercial activities.</p>
+            <ul>
+              <li>TIN is issued by the Ethiopian Revenue and Customs Authority (ERCA)</li>
+              <li>Required for tax filing, customs clearance, and business transactions</li>
+              <li>Valid for the lifetime of the business</li>
+              <li>Must be renewed annually for tax purposes</li>
+            </ul>
+          </div>
+        </div>
+      </main>
+    );
+  };
+
   const renderFooter = () => (
     <footer className="footer">
       <div className="footer-content">
         <div className="footer-section">
-          <h3>Mehari SupplyChain AI</h3>
-          <p>AI-driven platform optimizing construction material supply chains in Ethiopia. Master's Program Project.</p>
-          <p><i className="fas fa-map-marker-alt"></i> Addis Ababa, Ethiopia</p>
+          <h3>EthioSupply AI</h3>
+          <p>AI-driven platform optimizing supply chains across all departments in Ethiopia. Master's Program Project.</p>
+          <p><i className="fas fa-map-marker-alt"></i> Serving All Regions of Ethiopia</p>
         </div>
         
         <div className="footer-section">
           <h3>Quick Links</h3>
           <ul className="footer-links">
             <li><a href="#" onClick={(e) => { e.preventDefault(); navigateTo('home'); }}><i className="fas fa-chevron-right"></i> Home</a></li>
-            <li><a href="#" onClick={(e) => { e.preventDefault(); navigateTo('search-materials'); }}><i className="fas fa-chevron-right"></i> Find Materials</a></li>
+            <li><a href="#" onClick={(e) => { e.preventDefault(); navigateTo('search-materials'); }}><i className="fas fa-chevron-right"></i> Find Products</a></li>
             <li><a href="#" onClick={(e) => { e.preventDefault(); navigateTo('supplier-map'); }}><i className="fas fa-chevron-right"></i> Supplier Map</a></li>
             <li><a href="#" onClick={(e) => { e.preventDefault(); navigateTo('price-forecast'); }}><i className="fas fa-chevron-right"></i> Price Forecast</a></li>
           </ul>
+        </div>
+        
+        <div className="footer-section">
+          <h3>Departments</h3>
+          <div className="footer-departments">
+            {DEPARTMENTS.slice(0, 6).map((dept, index) => (
+              <span key={index} className="footer-dept-badge">{dept}</span>
+            ))}
+          </div>
         </div>
         
         <div className="footer-section">
@@ -2179,13 +2554,13 @@ function App() {
           <ul className="footer-links">
             <li><a href="#"><i className="fas fa-envelope"></i> meharinageb@gmail.com</a></li>
             <li><a href="#"><i className="fas fa-phone"></i> +251909919154</a></li>
-            <li><a href="#"><i className="fas fa-university"></i> Mehari</a></li>
+            <li><a href="#"><i className="fas fa-university"></i> Ethiopian Business Portal</a></li>
           </ul>
         </div>
       </div>
       
       <div className="copyright">
-        <p>© 2024 Mehari AI Construction Supply Chain Platform | Master's Program Project | All data is stored locally in your browser</p>
+        <p>© 2024 EthioSupply AI Platform | Master's Program Project | All data is stored locally in your browser</p>
       </div>
     </footer>
   );
@@ -2219,6 +2594,158 @@ function App() {
         .hybrid-input:focus + .input-hint {
           opacity: 0.7;
         }
+        
+        .unit-selection {
+          position: relative;
+        }
+        
+        .unit-hint {
+          margin-top: 0.25rem;
+          color: var(--gray);
+          font-size: 0.8rem;
+          display: flex;
+          align-items: center;
+          gap: 5px;
+        }
+        
+        .departments-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          gap: 1rem;
+          margin-top: 1.5rem;
+        }
+        
+        .department-badge {
+          background: var(--light);
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          padding: 0.75rem;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          transition: all 0.3s ease;
+        }
+        
+        .department-badge:hover {
+          background: var(--primary-light);
+          border-color: var(--primary);
+        }
+        
+        .footer-departments {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+        }
+        
+        .footer-dept-badge {
+          background: rgba(255, 255, 255, 0.1);
+          padding: 0.25rem 0.5rem;
+          border-radius: 4px;
+          font-size: 0.8rem;
+        }
+        
+        .tin-display {
+          background: var(--success-light);
+          border: 1px solid var(--success);
+          border-radius: 8px;
+          padding: 0.75rem;
+          margin-top: 1rem;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+        
+        .tin-badge {
+          background: var(--primary);
+          color: white;
+          padding: 0.2rem 0.5rem;
+          border-radius: 4px;
+          font-size: 0.8rem;
+          margin-left: 0.5rem;
+        }
+        
+        .tin-status-card {
+          background: white;
+          border-radius: 12px;
+          padding: 2rem;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+          text-align: center;
+        }
+        
+        .tin-status-header {
+          margin-bottom: 2rem;
+        }
+        
+        .tin-status-header .fa-file-contract {
+          font-size: 4rem;
+          margin-bottom: 1rem;
+        }
+        
+        .tin-status-header .fa-file-contract.success {
+          color: var(--success);
+        }
+        
+        .tin-details {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+          gap: 1.5rem;
+          margin-bottom: 2rem;
+          text-align: left;
+        }
+        
+        .tin-detail-item {
+          background: var(--light);
+          padding: 1rem;
+          border-radius: 8px;
+        }
+        
+        .tin-detail-item label {
+          display: block;
+          font-weight: 600;
+          color: var(--dark);
+          margin-bottom: 0.5rem;
+        }
+        
+        .tin-value {
+          font-size: 1.1rem;
+          color: var(--primary);
+        }
+        
+        .tin-info-box {
+          background: var(--light);
+          border-left: 4px solid var(--primary);
+          padding: 1rem;
+          margin-top: 2rem;
+          border-radius: 0 8px 8px 0;
+        }
+        
+        .tin-info-box h4 {
+          margin-top: 0;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+        
+        .tin-actions {
+          display: flex;
+          justify-content: center;
+          gap: 1rem;
+        }
+        
+        .form-actions {
+          display: flex;
+          gap: 1rem;
+          margin-top: 2rem;
+        }
+        
+        .form-actions .btn-secondary {
+          background: var(--gray-light);
+          color: var(--dark);
+        }
+        
+        .form-actions .btn-secondary:hover {
+          background: var(--gray);
+        }
       </style>
     `;
   };
@@ -2237,6 +2764,7 @@ function App() {
       case 'analytics': return renderAnalytics();
       case 'supplier-map': return renderSupplierMap();
       case 'price-forecast': return renderPriceForecast();
+      case 'tin-registration': return renderTinRegistration();
       default: return renderHome();
     }
   };
