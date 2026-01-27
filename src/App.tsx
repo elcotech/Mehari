@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import './App.css';
 
 // Define TypeScript interfaces
@@ -16,6 +16,9 @@ interface User {
   registered: string;
   loginAttempts: number;
   lockUntil?: number;
+  tinNumber?: string;
+  businessLicense?: string;
+  vatRegistered: boolean;
 }
 
 interface Company {
@@ -29,6 +32,11 @@ interface Company {
   rating: number;
   totalOrders: number;
   established: string;
+  tinNumber: string;
+  businessLicense: string;
+  vatNumber?: string;
+  tradeLicenseExpiry: string;
+  complianceStatus: 'compliant' | 'pending' | 'suspended';
 }
 
 interface Material {
@@ -43,6 +51,25 @@ interface Material {
   minOrder: number;
   transportCost?: number;
   rating?: number;
+  // Detailed Specifications
+  brand?: string;
+  model?: string;
+  specifications: {
+    weight?: string;
+    dimensions?: string;
+    materialType?: string;
+    color?: string;
+    grade?: string;
+    certification?: string[];
+    origin?: string;
+    shelfLife?: string;
+    packaging?: string;
+    safetyStandards?: string[];
+  };
+  images?: string[];
+  taxIncluded: boolean;
+  vatPercentage: number;
+  lastUpdated: string;
 }
 
 interface Order {
@@ -59,6 +86,11 @@ interface Order {
   deliveryDate?: string;
   address: string;
   notes?: string;
+  invoiceNumber?: string;
+  taxAmount: number;
+  vatAmount: number;
+  paymentMethod: string;
+  paymentStatus: string;
 }
 
 interface Alert {
@@ -87,8 +119,18 @@ interface FormData {
   searchQuery: string;
   searchCategory: string;
   searchMaxPrice: string;
+  searchSupplier: string;
+  searchSortBy: 'price_asc' | 'price_desc' | 'distance_asc' | 'distance_desc' | 'rating_desc' | 'newest';
   orderQuantity: string;
   orderAddress: string;
+  // New fields for detailed specifications
+  materialBrand: string;
+  materialModel: string;
+  materialWeight: string;
+  materialDimensions: string;
+  materialGrade: string;
+  materialOrigin: string;
+  materialCertifications: string;
 }
 
 // Ethiopian Regions/States
@@ -117,6 +159,14 @@ const DEPARTMENTS = [
   'Printing & Packaging', 'Water & Sanitation', 'Environmental'
 ];
 
+// Certification Standards
+const CERTIFICATION_STANDARDS = [
+  'ES (Ethiopian Standard)', 'ISO 9001', 'ISO 14001', 'ISO 45001',
+  'CE Mark', 'FDA Approved', 'WHO-GMP', 'Ethiopian FDA',
+  'Quality Management System', 'Environmental Management',
+  'Occupational Health & Safety'
+];
+
 function App() {
   // State Management with proper types
   const [currentPage, setCurrentPage] = useState<string>('home');
@@ -140,11 +190,11 @@ function App() {
     const savedUsers = localStorage.getItem('users');
     if (savedUsers) {
       const parsedUsers = JSON.parse(savedUsers);
-      // Initialize loginAttempts and lockUntil if they don't exist
       return parsedUsers.map((user: User) => ({
         ...user,
         loginAttempts: user.loginAttempts || 0,
-        lockUntil: user.lockUntil || 0
+        lockUntil: user.lockUntil || 0,
+        vatRegistered: user.vatRegistered || false
       }));
     }
     return [];
@@ -153,8 +203,11 @@ function App() {
     const savedTins = localStorage.getItem('tins');
     return savedTins ? JSON.parse(savedTins) : [];
   });
-  const [searchResults, setSearchResults] = useState<Array<Material & {company?: Company, totalCost?: number, estimatedTransport?: number}>>([]);
+  const [searchResults, setSearchResults] = useState<Array<Material & {company?: Company, totalCost?: number, estimatedTransport?: number, distance?: number}>>([]);
   const [alert, setAlert] = useState<Alert | null>(null);
+  const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
+  const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'}>({ key: 'totalCost', direction: 'asc' });
+  
   const [formData, setFormData] = useState<FormData>({
     loginEmail: '',
     loginPassword: '',
@@ -176,10 +229,19 @@ function App() {
     searchQuery: '',
     searchCategory: 'all',
     searchMaxPrice: '',
+    searchSupplier: '',
+    searchSortBy: 'price_asc',
     orderQuantity: '',
     orderAddress: '',
+    materialBrand: '',
+    materialModel: '',
+    materialWeight: '',
+    materialDimensions: '',
+    materialGrade: '',
+    materialOrigin: 'Ethiopia',
+    materialCertifications: '',
   });
-  
+
   // New state for TIN registration
   const [tinData, setTinData] = useState({
     tinNumber: '',
@@ -189,10 +251,13 @@ function App() {
     woreda: '',
     kebele: '',
     businessAddress: '',
-    registrationDate: new Date().toISOString().split('T')[0]
+    registrationDate: new Date().toISOString().split('T')[0],
+    vatNumber: '',
+    tradeLicense: '',
+    licenseExpiry: ''
   });
 
-  // Initialize with sample data
+  // Initialize with enhanced sample data
   useEffect(() => {
     if (users.length === 0) {
       const sampleUsers: User[] = [
@@ -202,14 +267,17 @@ function App() {
           email: 'meharinageb@gmail.com',
           password: 'password123',
           userType: 'company',
-          companyName: 'Mehari General Supplies',
+          companyName: 'Mehari General Supplies PLC',
           phone: '+251909919154',
-          address: 'Bole, Addis Ababa',
+          address: 'Bole Road, Addis Ababa, Ethiopia',
           lat: 8.9806,
           lng: 38.7578,
           registered: '2023-01-15',
           loginAttempts: 0,
-          lockUntil: 0
+          lockUntil: 0,
+          tinNumber: 'ET0001234567',
+          businessLicense: 'BL/ET/2023/001',
+          vatRegistered: true
         },
         {
           id: 'user2',
@@ -219,12 +287,13 @@ function App() {
           userType: 'customer',
           companyName: '',
           phone: '+251 912 345 678',
-          address: 'Megenagna, Addis Ababa',
+          address: 'Megenagna, Addis Ababa, Ethiopia',
           lat: 9.0227,
           lng: 38.7468,
           registered: '2023-02-20',
           loginAttempts: 0,
-          lockUntil: 0
+          lockUntil: 0,
+          vatRegistered: false
         }
       ];
       setUsers(sampleUsers);
@@ -236,38 +305,53 @@ function App() {
         {
           id: 'comp1',
           userId: 'user1',
-          name: 'Mehari General Supplies',
-          description: 'Premium supplier for various industrial and consumer goods',
-          location: 'Bole, Addis Ababa',
+          name: 'Mehari General Supplies PLC',
+          description: 'Premium supplier for various industrial and consumer goods with 20+ years of experience',
+          location: 'Bole Road, Addis Ababa',
           lat: 8.9806,
           lng: 38.7578,
           rating: 4.8,
           totalOrders: 124,
-          established: '2020'
+          established: '2020',
+          tinNumber: 'ET0001234567',
+          businessLicense: 'BL/ET/2023/001',
+          vatNumber: 'VAT00123456',
+          tradeLicenseExpiry: '2025-12-31',
+          complianceStatus: 'compliant'
         },
         {
           id: 'comp2',
           userId: 'user3',
-          name: 'Ethio Industrial Supplies',
-          description: 'Industrial materials wholesale',
+          name: 'Ethio Industrial Supplies PLC',
+          description: 'Industrial materials wholesale with nationwide distribution',
           location: 'Merkato, Addis Ababa',
           lat: 9.0300,
           lng: 38.7500,
           rating: 4.5,
           totalOrders: 89,
-          established: '2019'
+          established: '2019',
+          tinNumber: 'ET0002345678',
+          businessLicense: 'BL/ET/2019/045',
+          vatNumber: 'VAT00234567',
+          tradeLicenseExpiry: '2024-12-31',
+          complianceStatus: 'compliant'
         },
         {
           id: 'comp3',
           userId: 'user4',
-          name: 'Addis Pharmaceuticals & Medical Supplies',
-          description: 'Specialized in medical and pharmaceutical products',
+          name: 'Addis Pharmaceuticals & Medical Supplies PLC',
+          description: 'Specialized in medical and pharmaceutical products with FDA approval',
           location: 'Kaliti, Addis Ababa',
           lat: 8.8500,
           lng: 38.7200,
           rating: 4.7,
           totalOrders: 156,
-          established: '2018'
+          established: '2018',
+          tinNumber: 'ET0003456789',
+          businessLicense: 'BL/ET/2018/123',
+          vatNumber: 'VAT00345678',
+          tradeLicenseExpiry: '2024-12-31',
+          complianceStatus: 'compliant'
         }
       ];
       setCompanies(sampleCompanies);
@@ -279,54 +363,124 @@ function App() {
         {
           id: 'mat1',
           companyId: 'comp1',
-          name: 'Portland Cement',
+          name: 'Portland Cement - 42.5 Grade',
           category: 'Construction',
-          description: 'High quality Portland cement for construction',
+          description: 'High quality Portland cement 42.5 Grade for construction. Suitable for structural concrete, plastering, and masonry works.',
           price: 850,
           unit: '50kg bag',
           quantity: 500,
           minOrder: 10,
           transportCost: 15,
-          rating: 4.5
+          rating: 4.5,
+          brand: 'Dangote',
+          model: 'PC-42.5',
+          specifications: {
+            weight: '50kg',
+            dimensions: 'N/A',
+            materialType: 'Cement',
+            color: 'Gray',
+            grade: '42.5',
+            certification: ['ES (Ethiopian Standard)', 'ISO 9001'],
+            origin: 'Ethiopia',
+            shelfLife: '6 months',
+            packaging: 'PP woven bags',
+            safetyStandards: ['OSHA Compliant', 'Dust Control']
+          },
+          images: ['cement1.jpg', 'cement2.jpg'],
+          taxIncluded: true,
+          vatPercentage: 15,
+          lastUpdated: '2024-01-15'
         },
         {
           id: 'mat2',
           companyId: 'comp1',
-          name: 'Medical Gloves',
+          name: 'Medical Gloves - Nitrile Powder-Free',
           category: 'Healthcare',
-          description: 'Disposable latex-free medical gloves',
+          description: 'Disposable latex-free medical gloves, powder-free, ambidextrous. Suitable for medical and laboratory use.',
           price: 120,
           unit: 'Box (100 pcs)',
           quantity: 1000,
           minOrder: 5,
           transportCost: 8,
-          rating: 4.7
+          rating: 4.7,
+          brand: 'MediSafe',
+          model: 'NG-100',
+          specifications: {
+            weight: '200g per box',
+            dimensions: 'Medium',
+            materialType: 'Nitrile',
+            color: 'Blue',
+            grade: 'Medical Grade',
+            certification: ['FDA Approved', 'CE Mark', 'ISO 13485'],
+            origin: 'China',
+            shelfLife: '5 years',
+            packaging: 'Box of 100',
+            safetyStandards: ['FDA Class I', 'Latex Free']
+          },
+          images: ['gloves1.jpg'],
+          taxIncluded: true,
+          vatPercentage: 15,
+          lastUpdated: '2024-01-10'
         },
         {
           id: 'mat3',
           companyId: 'comp2',
-          name: 'Fertilizer Urea',
+          name: 'Fertilizer Urea - 46% Nitrogen',
           category: 'Agriculture',
-          description: 'Agricultural grade urea fertilizer',
+          description: 'Agricultural grade urea fertilizer with 46% nitrogen content. Promotes healthy plant growth and high yield.',
           price: 950,
           unit: '50kg bag',
           quantity: 2000,
           minOrder: 20,
           transportCost: 12,
-          rating: 4.3
+          rating: 4.3,
+          brand: 'AgriMax',
+          model: 'U-46',
+          specifications: {
+            weight: '50kg',
+            dimensions: 'N/A',
+            materialType: 'Chemical Fertilizer',
+            color: 'White',
+            grade: '46% N',
+            certification: ['ES (Ethiopian Standard)', 'ISO 14001'],
+            origin: 'Ethiopia',
+            shelfLife: '2 years',
+            packaging: 'PP woven bags',
+            safetyStandards: ['MSDS Available', 'Proper Storage Required']
+          },
+          taxIncluded: true,
+          vatPercentage: 15,
+          lastUpdated: '2024-01-12'
         },
         {
           id: 'mat4',
           companyId: 'comp3',
-          name: 'Desktop Computers',
+          name: 'Desktop Computer - Dell Optiplex 3090',
           category: 'Information Technology',
-          description: 'Dell Optiplex desktop computers',
+          description: 'Dell Optiplex 3090 desktop computer with Intel Core i5, 8GB RAM, 256GB SSD. Perfect for office and educational use.',
           price: 25000,
           unit: 'Piece',
           quantity: 50,
           minOrder: 1,
           transportCost: 200,
-          rating: 4.6
+          rating: 4.6,
+          brand: 'Dell',
+          model: 'Optiplex 3090',
+          specifications: {
+            weight: '5.2kg',
+            dimensions: '292 x 92 x 294 mm',
+            materialType: 'Electronic',
+            color: 'Black',
+            grade: 'Commercial Grade',
+            certification: ['ISO 9001', 'Energy Star'],
+            origin: 'China',
+            shelfLife: 'N/A',
+            packaging: 'Original box',
+            safetyStandards: ['FCC', 'CE', 'RoHS']
+          },
+          taxIncluded: true,
+          vatPercentage: 15,
+          lastUpdated: '2024-01-05'
         }
       ];
       setMaterials(sampleMaterials);
@@ -347,7 +501,12 @@ function App() {
           status: 'delivered',
           orderDate: '2023-10-15',
           deliveryDate: '2023-10-18',
-          address: 'Megenagna, Addis Ababa'
+          address: 'Megenagna, Addis Ababa',
+          invoiceNumber: 'INV-2023-001',
+          taxAmount: 6450,
+          vatAmount: 967.5,
+          paymentMethod: 'Bank Transfer',
+          paymentStatus: 'paid'
         }
       ];
       setOrders(sampleOrders);
@@ -415,15 +574,19 @@ function App() {
     }
   };
 
-  const calculateTransportCost = (fromLat: number, fromLng: number, toLat: number, toLng: number, quantity: number): number => {
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
     const R = 6371; // Earth's radius in km
-    const dLat = (toLat - fromLat) * Math.PI / 180;
-    const dLng = (toLng - fromLng) * Math.PI / 180;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(fromLat * Math.PI / 180) * Math.cos(toLat * Math.PI / 180) *
-              Math.sin(dLng/2) * Math.sin(dLng/2);
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    const distance = R * c;
+    return R * c;
+  };
+
+  const calculateTransportCost = (fromLat: number, fromLng: number, toLat: number, toLng: number, quantity: number): number => {
+    const distance = calculateDistance(fromLat, fromLng, toLat, toLng);
     
     const baseRate = 500;
     const ratePerKm = 15;
@@ -485,7 +648,25 @@ function App() {
     };
     
     setTins(prev => [...prev, newTin]);
-    showAlert('TIN registered successfully!', 'success');
+    
+    // Update company with TIN info
+    const company = getCompanyByUserId(currentUser.id);
+    if (company) {
+      setCompanies(prev => prev.map(comp => {
+        if (comp.id === company.id) {
+          return {
+            ...comp,
+            tinNumber: tinData.tinNumber,
+            vatNumber: tinData.vatNumber,
+            businessLicense: tinData.tradeLicense,
+            tradeLicenseExpiry: tinData.licenseExpiry
+          };
+        }
+        return comp;
+      }));
+    }
+    
+    showAlert('TIN registered successfully! Your business is now compliant with Ethiopian trade regulations.', 'success');
     
     // Reset form
     setTinData({
@@ -496,7 +677,10 @@ function App() {
       woreda: '',
       kebele: '',
       businessAddress: '',
-      registrationDate: new Date().toISOString().split('T')[0]
+      registrationDate: new Date().toISOString().split('T')[0],
+      vatNumber: '',
+      tradeLicense: '',
+      licenseExpiry: ''
     });
   };
 
@@ -590,7 +774,8 @@ function App() {
       lng: 38.7469 + (Math.random() * 0.05 - 0.025),
       registered: new Date().toISOString().split('T')[0],
       loginAttempts: 0,
-      lockUntil: 0
+      lockUntil: 0,
+      vatRegistered: false
     };
     
     setUsers(prev => [...prev, newUser]);
@@ -606,7 +791,11 @@ function App() {
         lng: newUser.lng || 38.7469,
         rating: 0,
         totalOrders: 0,
-        established: new Date().getFullYear().toString()
+        established: new Date().getFullYear().toString(),
+        tinNumber: '',
+        businessLicense: '',
+        tradeLicenseExpiry: '',
+        complianceStatus: 'pending'
       };
       setCompanies(prev => [...prev, newCompany]);
     }
@@ -636,7 +825,9 @@ function App() {
     e.preventDefault();
     const { 
       materialName, materialCategory, materialPrice, materialQuantity,
-      materialUnit, materialMinOrder, materialDescription 
+      materialUnit, materialMinOrder, materialDescription,
+      materialBrand, materialModel, materialWeight, materialDimensions,
+      materialGrade, materialOrigin, materialCertifications
     } = formData;
     
     if (!currentUser || currentUser.userType !== 'company') {
@@ -661,12 +852,26 @@ function App() {
       minOrder: parseInt(materialMinOrder),
       description: materialDescription,
       transportCost: 15,
-      rating: 0
+      rating: 0,
+      brand: materialBrand,
+      model: materialModel,
+      specifications: {
+        weight: materialWeight,
+        dimensions: materialDimensions,
+        grade: materialGrade,
+        origin: materialOrigin,
+        certification: materialCertifications.split(',').map(c => c.trim()).filter(c => c)
+      },
+      taxIncluded: true,
+      vatPercentage: 15,
+      lastUpdated: new Date().toISOString().split('T')[0]
     };
     
     setMaterials(prev => [...prev, newMaterial]);
-    showAlert('Material added successfully!', 'success');
+    showAlert('Material added successfully! Product specifications saved.', 'success');
     setCurrentPage('company-dashboard');
+    
+    // Reset form
     setFormData(prev => ({
       ...prev,
       materialName: '',
@@ -675,7 +880,14 @@ function App() {
       materialQuantity: '',
       materialUnit: '',
       materialMinOrder: '',
-      materialDescription: ''
+      materialDescription: '',
+      materialBrand: '',
+      materialModel: '',
+      materialWeight: '',
+      materialDimensions: '',
+      materialGrade: '',
+      materialOrigin: 'Ethiopia',
+      materialCertifications: ''
     }));
   };
 
@@ -717,7 +929,9 @@ function App() {
       quantity
     );
     
-    const totalAmount = (material.price * quantity) + transportCost;
+    const subtotal = material.price * quantity;
+    const vatAmount = material.taxIncluded ? 0 : subtotal * (material.vatPercentage / 100);
+    const totalAmount = subtotal + transportCost + vatAmount;
     
     const newOrder: Order = {
       id: 'order' + (orders.length + 1),
@@ -731,11 +945,16 @@ function App() {
       status: 'pending',
       orderDate: new Date().toISOString().split('T')[0],
       address: orderAddress || currentUser.address,
-      notes: ''
+      notes: '',
+      invoiceNumber: `INV-${new Date().getFullYear()}-${orders.length + 1000}`,
+      taxAmount: 0,
+      vatAmount: vatAmount,
+      paymentMethod: 'Bank Transfer',
+      paymentStatus: 'pending'
     };
     
     setOrders(prev => [...prev, newOrder]);
-    showAlert('Order placed successfully!', 'success');
+    showAlert('Order placed successfully! Invoice generated.', 'success');
     setCurrentPage('orders');
     setFormData(prev => ({ ...prev, orderQuantity: '', orderAddress: '' }));
   };
@@ -746,6 +965,7 @@ function App() {
         const updatedOrder = { ...order, status };
         if (status === 'delivered') {
           updatedOrder.deliveryDate = new Date().toISOString().split('T')[0];
+          updatedOrder.paymentStatus = 'paid';
         }
         return updatedOrder;
       }
@@ -774,14 +994,15 @@ function App() {
       company: company.name,
       phone: user.phone,
       email: user.email,
-      address: company.location
+      address: company.location,
+      TIN: company.tinNumber
     });
   };
 
-  // Search Functionality
-  const handleSearch = (e: React.FormEvent): void => {
+  // Enhanced Search Functionality
+  const handleSearch = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    const { searchQuery, searchCategory, searchMaxPrice } = formData;
+    const { searchQuery, searchCategory, searchMaxPrice, searchSupplier, searchSortBy } = formData;
     
     let results = materials.filter(material => {
       let matches = true;
@@ -791,6 +1012,8 @@ function App() {
         matches = matches && (
           material.name.toLowerCase().includes(searchLower) ||
           material.description.toLowerCase().includes(searchLower) ||
+          material.brand?.toLowerCase().includes(searchLower) ||
+          material.model?.toLowerCase().includes(searchLower) ||
           material.category.toLowerCase().includes(searchLower)
         );
       }
@@ -803,14 +1026,25 @@ function App() {
         matches = matches && material.price <= parseFloat(searchMaxPrice);
       }
       
+      if (searchSupplier) {
+        const company = getCompanyById(material.companyId);
+        matches = matches && company?.name.toLowerCase().includes(searchSupplier.toLowerCase());
+      }
+      
       return matches;
     });
     
+    // Calculate additional data for each result
     results = results.map(material => {
       const company = getCompanyById(material.companyId);
       let estimatedTransport = 0;
+      let distance = 0;
       
       if (company && currentUser) {
+        distance = calculateDistance(
+          company.lat, company.lng,
+          currentUser.lat || 9.0320, currentUser.lng || 38.7469
+        );
         estimatedTransport = calculateTransportCost(
           company.lat, company.lng,
           currentUser.lat || 9.0320, currentUser.lng || 38.7469,
@@ -818,16 +1052,47 @@ function App() {
         );
       }
       
+      const totalCost = material.price + (estimatedTransport / material.minOrder);
+      
       return {
         ...material,
         company,
-        totalCost: material.price + (estimatedTransport / material.minOrder),
-        estimatedTransport
+        totalCost,
+        estimatedTransport,
+        distance
       };
     });
     
-    results.sort((a, b) => (a.totalCost || 0) - (b.totalCost || 0));
+    // Apply sorting
+    results.sort((a, b) => {
+      switch (searchSortBy) {
+        case 'price_asc':
+          return a.price - b.price;
+        case 'price_desc':
+          return b.price - a.price;
+        case 'distance_asc':
+          return (a.distance || 0) - (b.distance || 0);
+        case 'distance_desc':
+          return (b.distance || 0) - (a.distance || 0);
+        case 'rating_desc':
+          return (b.rating || 0) - (a.rating || 0);
+        case 'newest':
+          return new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime();
+        default:
+          return (a.totalCost || 0) - (b.totalCost || 0);
+      }
+    });
+    
     setSearchResults(results);
+    setSortConfig({ key: searchSortBy.split('_')[0], direction: searchSortBy.includes('asc') ? 'asc' : 'desc' });
+  }, [formData, materials, currentUser]);
+
+  // Sort function
+  const handleSort = (sortBy: FormData['searchSortBy']) => {
+    setFormData(prev => ({ ...prev, searchSortBy: sortBy }));
+    // Trigger search with new sort
+    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+    handleSearch(fakeEvent);
   };
 
   // Navigation
@@ -885,6 +1150,21 @@ function App() {
     
     return () => clearInterval(interval);
   }, [users]);
+
+  // Calculate statistics
+  const calculateStats = () => {
+    const userOrders = currentUser ? orders.filter(o => 
+      currentUser.userType === 'company' 
+        ? getCompanyByUserId(currentUser.id)?.id === o.companyId
+        : o.customerId === currentUser.id
+    ) : [];
+    
+    const totalRevenue = userOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+    const pendingOrders = userOrders.filter(o => o.status === 'pending').length;
+    const deliveredOrders = userOrders.filter(o => o.status === 'delivered').length;
+    
+    return { totalRevenue, pendingOrders, deliveredOrders, totalOrders: userOrders.length };
+  };
 
   // Render Header
   const renderHeader = () => (
@@ -1008,6 +1288,205 @@ function App() {
     );
   };
 
+  // Render Material Specifications
+  const renderMaterialSpecs = (material: Material) => {
+    const specs = material.specifications;
+    return (
+      <div className="specs-grid">
+        {specs.brand && (
+          <div className="spec-item">
+            <label>Brand:</label>
+            <span>{specs.brand}</span>
+          </div>
+        )}
+        {specs.model && (
+          <div className="spec-item">
+            <label>Model:</label>
+            <span>{specs.model}</span>
+          </div>
+        )}
+        {specs.grade && (
+          <div className="spec-item">
+            <label>Grade:</label>
+            <span>{specs.grade}</span>
+          </div>
+        )}
+        {specs.weight && (
+          <div className="spec-item">
+            <label>Weight:</label>
+            <span>{specs.weight}</span>
+          </div>
+        )}
+        {specs.dimensions && (
+          <div className="spec-item">
+            <label>Dimensions:</label>
+            <span>{specs.dimensions}</span>
+          </div>
+        )}
+        {specs.origin && (
+          <div className="spec-item">
+            <label>Origin:</label>
+            <span>{specs.origin}</span>
+          </div>
+        )}
+        {specs.shelfLife && (
+          <div className="spec-item">
+            <label>Shelf Life:</label>
+            <span>{specs.shelfLife}</span>
+          </div>
+        )}
+        {specs.certification && specs.certification.length > 0 && (
+          <div className="spec-item full-width">
+            <label>Certifications:</label>
+            <div className="certifications">
+              {specs.certification.map((cert, idx) => (
+                <span key={idx} className="cert-badge">{cert}</span>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="spec-item full-width">
+          <label>Tax & Compliance:</label>
+          <div className="compliance-info">
+            <span className={`tax-badge ${material.taxIncluded ? 'included' : 'excluded'}`}>
+              {material.taxIncluded ? 'Tax Included' : 'Tax Excluded'}
+            </span>
+            <span className="vat-badge">VAT: {material.vatPercentage}%</span>
+            <span className="last-updated">Updated: {formatDate(material.lastUpdated)}</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Render Material Details Modal
+  const renderMaterialDetails = () => {
+    if (!selectedMaterial) return null;
+    
+    const company = getCompanyById(selectedMaterial.companyId);
+    
+    return (
+      <div className="modal-overlay" onClick={() => setSelectedMaterial(null)}>
+        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <h2>{selectedMaterial.name}</h2>
+            <button className="modal-close" onClick={() => setSelectedMaterial(null)}>
+              <i className="fas fa-times"></i>
+            </button>
+          </div>
+          
+          <div className="modal-body">
+            <div className="material-detail-grid">
+              <div className="detail-section">
+                <h3>Product Description</h3>
+                <p>{selectedMaterial.description}</p>
+              </div>
+              
+              <div className="detail-section">
+                <h3>Specifications</h3>
+                {renderMaterialSpecs(selectedMaterial)}
+              </div>
+              
+              <div className="detail-section">
+                <h3>Supplier Information</h3>
+                {company && (
+                  <div className="supplier-details">
+                    <div className="supplier-header">
+                      <h4>{company.name}</h4>
+                      <div className="supplier-rating">
+                        <i className="fas fa-star"></i> {company.rating}/5
+                      </div>
+                    </div>
+                    <p>{company.description}</p>
+                    <div className="supplier-info-grid">
+                      <div className="info-item">
+                        <i className="fas fa-map-marker-alt"></i>
+                        <span>{company.location}</span>
+                      </div>
+                      <div className="info-item">
+                        <i className="fas fa-file-contract"></i>
+                        <span>TIN: {company.tinNumber}</span>
+                      </div>
+                      <div className="info-item">
+                        <i className="fas fa-shield-alt"></i>
+                        <span>License: {company.businessLicense}</span>
+                      </div>
+                      <div className="info-item">
+                        <i className="fas fa-calendar-check"></i>
+                        <span>Established: {company.established}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="detail-section">
+                <h3>Pricing & Order Information</h3>
+                <div className="pricing-details">
+                  <div className="price-breakdown">
+                    <div className="price-item">
+                      <span>Unit Price:</span>
+                      <strong>{formatCurrency(selectedMaterial.price)}</strong>
+                    </div>
+                    <div className="price-item">
+                      <span>Unit:</span>
+                      <span>{selectedMaterial.unit}</span>
+                    </div>
+                    <div className="price-item">
+                      <span>Minimum Order:</span>
+                      <span>{selectedMaterial.minOrder} {selectedMaterial.unit}</span>
+                    </div>
+                    <div className="price-item">
+                      <span>Available Stock:</span>
+                      <span>{selectedMaterial.quantity} {selectedMaterial.unit}</span>
+                    </div>
+                    <div className="price-item">
+                      <span>VAT:</span>
+                      <span>{selectedMaterial.vatPercentage}%</span>
+                    </div>
+                  </div>
+                  
+                  <div className="order-form">
+                    <h4>Place Order</h4>
+                    <div className="form-group">
+                      <label>Quantity</label>
+                      <input
+                        type="number"
+                        min={selectedMaterial.minOrder}
+                        max={selectedMaterial.quantity}
+                        value={formData.orderQuantity}
+                        onChange={(e) => setFormData(prev => ({ ...prev, orderQuantity: e.target.value }))}
+                        placeholder={`Min: ${selectedMaterial.minOrder}`}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Delivery Address</label>
+                      <input
+                        type="text"
+                        value={formData.orderAddress}
+                        onChange={(e) => setFormData(prev => ({ ...prev, orderAddress: e.target.value }))}
+                        placeholder="Enter delivery address"
+                      />
+                    </div>
+                    <button 
+                      className="btn btn-primary"
+                      onClick={() => {
+                        handlePlaceOrder(selectedMaterial.id);
+                        setSelectedMaterial(null);
+                      }}
+                    >
+                      <i className="fas fa-shopping-cart"></i> Place Order
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Render Pages
   const renderHome = () => {
     const stats = {
@@ -1118,7 +1597,6 @@ function App() {
   };
 
   const renderLogin = () => {
-    // Get selected user details
     const selectedUser = users.find(u => u.email === formData.selectedUser);
     const isLocked = selectedUser ? isUserLocked(selectedUser) : false;
     const remainingTime = selectedUser && selectedUser.lockUntil 
@@ -1246,7 +1724,7 @@ function App() {
             <form onSubmit={handleRegister}>
               {formData.registerUserType === 'company' && (
                 <div className="form-group">
-                  <label className="form-label">Company Name</label>
+                  <label className="form-label">Company Name *</label>
                   <input 
                     type="text" 
                     className="form-input" 
@@ -1261,7 +1739,7 @@ function App() {
               
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">Full Name</label>
+                  <label className="form-label">Full Name *</label>
                   <input 
                     type="text" 
                     className="form-input" 
@@ -1274,7 +1752,7 @@ function App() {
                 </div>
                 
                 <div className="form-group">
-                  <label className="form-label">Email Address</label>
+                  <label className="form-label">Email Address *</label>
                   <input 
                     type="email" 
                     className="form-input" 
@@ -1289,7 +1767,7 @@ function App() {
               
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">Password</label>
+                  <label className="form-label">Password *</label>
                   <input 
                     type="password" 
                     className="form-input" 
@@ -1302,7 +1780,7 @@ function App() {
                 </div>
                 
                 <div className="form-group">
-                  <label className="form-label">Phone Number</label>
+                  <label className="form-label">Phone Number *</label>
                   <input 
                     type="tel" 
                     className="form-input" 
@@ -1316,7 +1794,7 @@ function App() {
               </div>
               
               <div className="form-group">
-                <label className="form-label">Address</label>
+                <label className="form-label">Address *</label>
                 <input 
                   type="text" 
                   className="form-input" 
@@ -1326,6 +1804,15 @@ function App() {
                   required 
                   placeholder="Enter your address"
                 />
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">
+                  <input type="checkbox" required /> I agree to Ethiopian Trade Regulations
+                </label>
+                <p className="form-hint">
+                  By registering, you agree to comply with all Ethiopian trade laws and regulations including proper TIN registration and tax compliance.
+                </p>
               </div>
               
               <button type="submit" className="btn-submit">
@@ -1356,12 +1843,7 @@ function App() {
     const companyOrders = orders.filter(o => o.companyId === company?.id);
     const userTin = getTinByUserId(currentUser.id);
     
-    const stats = {
-      totalMaterials: companyMaterials.length,
-      totalOrders: companyOrders.length,
-      pendingOrders: companyOrders.filter(o => o.status === 'pending').length,
-      revenue: companyOrders.reduce((sum: number, o: Order) => sum + o.totalAmount, 0)
-    };
+    const stats = calculateStats();
     
     return (
       <main className="main-content">
@@ -1385,7 +1867,7 @@ function App() {
               <h3 className="card-title">Total Products</h3>
               <div className="card-icon"><i className="fas fa-box"></i></div>
             </div>
-            <div className="stat-value">{stats.totalMaterials}</div>
+            <div className="stat-value">{companyMaterials.length}</div>
             <p className="stat-label">Products listed</p>
           </div>
           
@@ -1412,7 +1894,7 @@ function App() {
               <h3 className="card-title">Total Revenue</h3>
               <div className="card-icon"><i className="fas fa-chart-line"></i></div>
             </div>
-            <div className="stat-value">{formatCurrency(stats.revenue)}</div>
+            <div className="stat-value">{formatCurrency(stats.totalRevenue)}</div>
             <p className="stat-label">All time sales</p>
           </div>
         </div>
@@ -1420,7 +1902,7 @@ function App() {
         {!userTin && (
           <div className="alert alert-warning">
             <i className="fas fa-exclamation-triangle"></i>
-            <strong>Important:</strong> You haven't registered your TIN yet. 
+            <strong>Important:</strong> You haven't registered your TIN yet. Ethiopian law requires all businesses to register for TIN.
             <button className="btn btn-primary btn-sm ml-2" onClick={() => navigateTo('tin-registration')}>
               <i className="fas fa-file-contract"></i> Register TIN Now
             </button>
@@ -1431,7 +1913,7 @@ function App() {
           <div className="card-header">
             <h3 className="card-title">Your Products</h3>
             <button className="btn btn-primary" onClick={() => navigateTo('add-material')}>
-              <i className="fas fa-plus"></i> Add New
+              <i className="fas fa-plus"></i> Add New Product
             </button>
           </div>
           <div className="table-responsive">
@@ -1440,8 +1922,9 @@ function App() {
                 <tr>
                   <th>Product</th>
                   <th>Department</th>
+                  <th>Specifications</th>
                   <th>Price</th>
-                  <th>Quantity</th>
+                  <th>Stock</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -1451,10 +1934,20 @@ function App() {
                   <tr key={material.id}>
                     <td>
                       <strong>{material.name}</strong><br/>
-                      <small>{material.description.substring(0, 50)}...</small>
+                      <small>{material.brand} | {material.model}</small>
                     </td>
                     <td><span className="badge badge-primary">{material.category}</span></td>
-                    <td><strong>{formatCurrency(material.price)}</strong> / {material.unit}</td>
+                    <td>
+                      <div className="specs-preview">
+                        {material.specifications.grade && <span>{material.specifications.grade}</span>}
+                        {material.specifications.weight && <span>{material.specifications.weight}</span>}
+                        {material.specifications.origin && <span>{material.specifications.origin}</span>}
+                      </div>
+                    </td>
+                    <td>
+                      <strong>{formatCurrency(material.price)}</strong><br/>
+                      <small>VAT: {material.vatPercentage}%</small>
+                    </td>
                     <td>{material.quantity} {material.unit}</td>
                     <td>
                       {material.quantity > 0 
@@ -1463,8 +1956,8 @@ function App() {
                     </td>
                     <td>
                       <div className="table-actions">
-                        <button className="btn-action btn-edit" onClick={() => {/* Edit functionality */}}>
-                          <i className="fas fa-edit"></i> Edit
+                        <button className="btn-action btn-edit" onClick={() => setSelectedMaterial(material)}>
+                          <i className="fas fa-eye"></i> View
                         </button>
                         <button className="btn-action btn-delete" onClick={() => handleDeleteMaterial(material.id)}>
                           <i className="fas fa-trash"></i> Delete
@@ -1473,6 +1966,58 @@ function App() {
                     </td>
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">Recent Orders</h3>
+          </div>
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Customer</th>
+                  <th>Product</th>
+                  <th>Quantity</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {companyOrders.slice(0, 5).map((order: Order) => {
+                  const material = getMaterialById(order.materialId);
+                  const customer = getUserById(order.customerId);
+                  return (
+                    <tr key={order.id}>
+                      <td><strong>{order.id}</strong><br/><small>Inv: {order.invoiceNumber}</small></td>
+                      <td>{customer ? customer.name : 'Unknown'}</td>
+                      <td>{material ? material.name : 'Unknown'}</td>
+                      <td>{order.quantity} {material ? material.unit : ''}</td>
+                      <td>
+                        {formatCurrency(order.totalAmount)}<br/>
+                        <small>VAT: {formatCurrency(order.vatAmount)}</small>
+                      </td>
+                      <td>
+                        {order.status === 'delivered' ? <span className="badge badge-success">Delivered</span> :
+                         order.status === 'in_transit' ? <span className="badge badge-warning">In Transit</span> :
+                         order.status === 'pending' ? <span className="badge badge-primary">Pending</span> :
+                         <span className="badge badge-danger">Cancelled</span>}
+                      </td>
+                      <td>
+                        {order.status === 'pending' && (
+                          <button className="btn-action btn-success" onClick={() => handleUpdateOrderStatus(order.id, 'confirmed')}>
+                            Confirm
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1491,13 +2036,7 @@ function App() {
     }
     
     const userOrders = orders.filter(o => o.customerId === currentUser.id);
-    
-    const stats = {
-      totalOrders: userOrders.length,
-      pendingOrders: userOrders.filter(o => o.status === 'pending').length,
-      deliveredOrders: userOrders.filter(o => o.status === 'delivered').length,
-      totalSpent: userOrders.reduce((sum: number, o: Order) => sum + o.totalAmount, 0)
-    };
+    const stats = calculateStats();
     
     return (
       <main className="main-content">
@@ -1542,7 +2081,7 @@ function App() {
               <h3 className="card-title">Total Spent</h3>
               <div className="card-icon"><i className="fas fa-money-bill-wave"></i></div>
             </div>
-            <div className="stat-value">{formatCurrency(stats.totalSpent)}</div>
+            <div className="stat-value">{formatCurrency(stats.totalRevenue)}</div>
             <p className="stat-label">All purchases</p>
           </div>
         </div>
@@ -1564,6 +2103,7 @@ function App() {
                   <th>Amount</th>
                   <th>Status</th>
                   <th>Date</th>
+                  <th>Invoice</th>
                 </tr>
               </thead>
               <tbody>
@@ -1574,8 +2114,11 @@ function App() {
                     <tr key={order.id}>
                       <td>{order.id}</td>
                       <td>{material ? material.name : 'Unknown'}</td>
-                      <td>{company ? company.name : 'Unknown'}</td>
-                      <td>{formatCurrency(order.totalAmount)}</td>
+                      <td>{company ? company.name : 'Unknown'}<br/><small>TIN: {company?.tinNumber}</small></td>
+                      <td>
+                        {formatCurrency(order.totalAmount)}<br/>
+                        <small>VAT: {formatCurrency(order.vatAmount)}</small>
+                      </td>
                       <td>
                         {order.status === 'delivered' ? <span className="badge badge-success">Delivered</span> :
                          order.status === 'in_transit' ? <span className="badge badge-warning">In Transit</span> :
@@ -1583,6 +2126,13 @@ function App() {
                          <span className="badge badge-danger">Cancelled</span>}
                       </td>
                       <td>{formatDate(order.orderDate)}</td>
+                      <td>
+                        {order.invoiceNumber && (
+                          <button className="btn-action btn-view">
+                            <i className="fas fa-file-invoice"></i> View
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -1606,11 +2156,23 @@ function App() {
                     <div className="material-supplier">
                       <i className="fas fa-building"></i>
                       <span>{company ? company.name : 'Unknown Supplier'}</span>
+                      <span className="supplier-tin">{company?.tinNumber}</span>
                     </div>
                   </div>
                   <div className="material-body">
-                    <p>{material.description}</p>
-                    <div className="material-price">{formatCurrency(material.price)} / {material.unit}</div>
+                    <p className="material-description">{material.description.substring(0, 100)}...</p>
+                    
+                    <div className="material-specs-preview">
+                      {material.brand && <span><i className="fas fa-tag"></i> {material.brand}</span>}
+                      {material.specifications.grade && <span><i className="fas fa-certificate"></i> {material.specifications.grade}</span>}
+                      {material.specifications.origin && <span><i className="fas fa-globe"></i> {material.specifications.origin}</span>}
+                    </div>
+                    
+                    <div className="material-price">
+                      {formatCurrency(material.price)} / {material.unit}
+                      <div className="vat-info">VAT {material.vatPercentage}% included</div>
+                    </div>
+                    
                     <div className="material-stats">
                       <div className="stat-item">
                         <div className="value">{material.quantity}</div>
@@ -1625,19 +2187,28 @@ function App() {
                         <div className="label">Rating</div>
                       </div>
                     </div>
-                    <button className="btn btn-primary w-100 mt-2" onClick={() => {
-                      setFormData(prev => ({ 
-                        ...prev, 
-                        orderQuantity: material.minOrder.toString(),
-                        orderAddress: currentUser.address
-                      }));
-                      setCurrentPage('search-materials');
-                    }}>
-                      <i className="fas fa-shopping-cart"></i> Order Now
-                    </button>
-                    <button className="btn btn-secondary w-100 mt-2" onClick={() => handleContactSupplier(material.id)}>
-                      <i className="fas fa-phone-alt"></i> Contact Supplier
-                    </button>
+                    
+                    <div className="material-actions">
+                      <button 
+                        className="btn btn-primary" 
+                        onClick={() => setSelectedMaterial(material)}
+                      >
+                        <i className="fas fa-eye"></i> View Details
+                      </button>
+                      <button 
+                        className="btn btn-secondary" 
+                        onClick={() => {
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            orderQuantity: material.minOrder.toString(),
+                            orderAddress: currentUser.address
+                          }));
+                          handlePlaceOrder(material.id);
+                        }}
+                      >
+                        <i className="fas fa-shopping-cart"></i> Quick Order
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -1651,10 +2222,10 @@ function App() {
   const renderAddMaterial = () => (
     <main className="main-content">
       <div className="form-container">
-        <h2 className="form-title">Add New Product</h2>
+        <h2 className="form-title">Add New Product with Specifications</h2>
         <form onSubmit={handleAddMaterial}>
           <div className="form-group">
-            <label className="form-label">Product Name</label>
+            <label className="form-label">Product Name *</label>
             <input 
               type="text" 
               className="form-input" 
@@ -1662,13 +2233,13 @@ function App() {
               value={formData.materialName}
               onChange={handleInputChange}
               required 
-              placeholder="e.g., Portland Cement, Medical Gloves, Fertilizer"
+              placeholder="e.g., Portland Cement 42.5 Grade, Medical Gloves Nitrile"
             />
           </div>
           
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Department/Category</label>
+              <label className="form-label">Department/Category *</label>
               <select 
                 className="form-select" 
                 name="materialCategory"
@@ -1684,7 +2255,7 @@ function App() {
             </div>
             
             <div className="form-group">
-              <label className="form-label">Unit of Measurement</label>
+              <label className="form-label">Unit of Measurement *</label>
               <div className="unit-selection">
                 <input 
                   type="text" 
@@ -1711,7 +2282,33 @@ function App() {
           
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Price per Unit (ETB)</label>
+              <label className="form-label">Brand</label>
+              <input 
+                type="text" 
+                className="form-input" 
+                name="materialBrand"
+                value={formData.materialBrand}
+                onChange={handleInputChange}
+                placeholder="e.g., Dangote, Dell, MediSafe"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">Model</label>
+              <input 
+                type="text" 
+                className="form-input" 
+                name="materialModel"
+                value={formData.materialModel}
+                onChange={handleInputChange}
+                placeholder="e.g., PC-42.5, Optiplex 3090, NG-100"
+              />
+            </div>
+          </div>
+          
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Price per Unit (ETB) *</label>
               <input 
                 type="number" 
                 className="form-input" 
@@ -1726,7 +2323,7 @@ function App() {
             </div>
             
             <div className="form-group">
-              <label className="form-label">Available Quantity</label>
+              <label className="form-label">Available Quantity *</label>
               <input 
                 type="number" 
                 className="form-input" 
@@ -1740,35 +2337,112 @@ function App() {
             </div>
           </div>
           
-          <div className="form-group">
-            <label className="form-label">Minimum Order Quantity</label>
-            <input 
-              type="number" 
-              className="form-input" 
-              name="materialMinOrder"
-              value={formData.materialMinOrder}
-              onChange={handleInputChange}
-              required 
-              min="1" 
-              placeholder="e.g., 10"
-            />
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Minimum Order Quantity *</label>
+              <input 
+                type="number" 
+                className="form-input" 
+                name="materialMinOrder"
+                value={formData.materialMinOrder}
+                onChange={handleInputChange}
+                required 
+                min="1" 
+                placeholder="e.g., 10"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">Grade/Quality</label>
+              <input 
+                type="text" 
+                className="form-input" 
+                name="materialGrade"
+                value={formData.materialGrade}
+                onChange={handleInputChange}
+                placeholder="e.g., 42.5 Grade, Medical Grade, 46% N"
+              />
+            </div>
+          </div>
+          
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Weight</label>
+              <input 
+                type="text" 
+                className="form-input" 
+                name="materialWeight"
+                value={formData.materialWeight}
+                onChange={handleInputChange}
+                placeholder="e.g., 50kg, 200g per box"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">Dimensions</label>
+              <input 
+                type="text" 
+                className="form-input" 
+                name="materialDimensions"
+                value={formData.materialDimensions}
+                onChange={handleInputChange}
+                placeholder="e.g., 292x92x294mm, N/A"
+              />
+            </div>
+          </div>
+          
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Country of Origin</label>
+              <input 
+                type="text" 
+                className="form-input" 
+                name="materialOrigin"
+                value={formData.materialOrigin}
+                onChange={handleInputChange}
+                placeholder="e.g., Ethiopia, China"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">Certifications</label>
+              <input 
+                type="text" 
+                className="form-input" 
+                name="materialCertifications"
+                value={formData.materialCertifications}
+                onChange={handleInputChange}
+                placeholder="e.g., ES Standard, ISO 9001, FDA Approved"
+              />
+              <small className="form-hint">Separate multiple certifications with commas</small>
+            </div>
           </div>
           
           <div className="form-group">
-            <label className="form-label">Description</label>
+            <label className="form-label">Description *</label>
             <textarea 
               className="form-textarea" 
               name="materialDescription"
               value={formData.materialDescription}
               onChange={handleInputChange}
               required 
-              placeholder="Describe the product, specifications, quality, etc."
+              placeholder="Describe the product, specifications, quality, intended use, etc."
+              rows={4}
             ></textarea>
+          </div>
+          
+          <div className="form-group">
+            <label className="form-label">
+              <input type="checkbox" defaultChecked /> Include 15% VAT in price
+            </label>
+            <p className="form-hint">
+              According to Ethiopian tax regulations, VAT must be clearly stated for all commercial transactions.
+            </p>
           </div>
           
           <div className="form-actions">
             <button type="submit" className="btn-submit">
-              <i className="fas fa-save"></i> Add Product
+              <i className="fas fa-save"></i> Add Product with Specifications
             </button>
             <button type="button" className="btn-secondary" onClick={() => navigateTo('company-dashboard')}>
               <i className="fas fa-times"></i> Cancel
@@ -1780,19 +2454,22 @@ function App() {
   );
 
   const renderSearchMaterials = () => {
+    const hasSearchResults = searchResults.length > 0;
+    const displayMaterials = hasSearchResults ? searchResults : materials;
+    
     return (
       <main className="main-content">
         <div className="dashboard-header">
           <div className="dashboard-title">
             <i className="fas fa-search"></i>
-            <h1>Find Products</h1>
+            <h1>Advanced Product Search</h1>
           </div>
-          <p className="dashboard-subtitle">Search for products across all departments, compare prices, and calculate transport costs</p>
+          <p className="dashboard-subtitle">Search, filter, and sort products across all departments with detailed specifications</p>
         </div>
         
         <div className="search-container">
           <form onSubmit={handleSearch}>
-            <div className="search-form">
+            <div className="search-form enhanced">
               <div className="form-group">
                 <label className="form-label">Search Products</label>
                 <input 
@@ -1801,7 +2478,19 @@ function App() {
                   name="searchQuery"
                   value={formData.searchQuery}
                   onChange={handleInputChange}
-                  placeholder="What product are you looking for?"
+                  placeholder="Product name, brand, model, description..."
+                />
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">Supplier</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  name="searchSupplier"
+                  value={formData.searchSupplier}
+                  onChange={handleInputChange}
+                  placeholder="Supplier name"
                 />
               </div>
               
@@ -1833,6 +2522,23 @@ function App() {
               </div>
               
               <div className="form-group">
+                <label className="form-label">Sort By</label>
+                <select 
+                  className="form-select" 
+                  name="searchSortBy"
+                  value={formData.searchSortBy}
+                  onChange={handleInputChange}
+                >
+                  <option value="price_asc">Price: Low to High</option>
+                  <option value="price_desc">Price: High to Low</option>
+                  <option value="distance_asc">Distance: Nearest</option>
+                  <option value="distance_desc">Distance: Farthest</option>
+                  <option value="rating_desc">Highest Rated</option>
+                  <option value="newest">Newest First</option>
+                </select>
+              </div>
+              
+              <div className="form-group">
                 <label className="form-label">&nbsp;</label>
                 <button type="submit" className="btn-submit">
                   <i className="fas fa-search"></i> Search
@@ -1840,121 +2546,196 @@ function App() {
               </div>
             </div>
           </form>
+          
+          <div className="sort-options">
+            <span className="sort-label">Quick Sort:</span>
+            <button 
+              className={`sort-btn ${formData.searchSortBy === 'price_asc' ? 'active' : ''}`}
+              onClick={() => handleSort('price_asc')}
+            >
+              <i className="fas fa-sort-amount-down"></i> Price (Low to High)
+            </button>
+            <button 
+              className={`sort-btn ${formData.searchSortBy === 'price_desc' ? 'active' : ''}`}
+              onClick={() => handleSort('price_desc')}
+            >
+              <i className="fas fa-sort-amount-up"></i> Price (High to Low)
+            </button>
+            <button 
+              className={`sort-btn ${formData.searchSortBy === 'distance_asc' ? 'active' : ''}`}
+              onClick={() => handleSort('distance_asc')}
+            >
+              <i className="fas fa-map-marker-alt"></i> Nearest
+            </button>
+            <button 
+              className={`sort-btn ${formData.searchSortBy === 'rating_desc' ? 'active' : ''}`}
+              onClick={() => handleSort('rating_desc')}
+            >
+              <i className="fas fa-star"></i> Top Rated
+            </button>
+          </div>
         </div>
         
-        {searchResults.length > 0 ? (
-          <div className="card">
-            <div className="card-header">
-              <h3 className="card-title">Search Results ({searchResults.length} found)</h3>
-              <div>
-                <span className="badge badge-primary">Sorted by: Total Cost (Product + Transport)</span>
-              </div>
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">
+              {hasSearchResults ? `Search Results (${displayMaterials.length} found)` : 'Available Products'}
+              <span className="sort-indicator">
+                Sorted by: {formData.searchSortBy.replace('_', ' ').toUpperCase()}
+              </span>
+            </h3>
+            <div className="result-stats">
+              <span className="stat-item">
+                <i className="fas fa-filter"></i> {displayMaterials.length} Products
+              </span>
+              {hasSearchResults && (
+                <button 
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => {
+                    setSearchResults([]);
+                    setFormData(prev => ({ ...prev, searchQuery: '', searchSupplier: '', searchMaxPrice: '' }));
+                  }}
+                >
+                  Clear Search
+                </button>
+              )}
             </div>
-            <div className="materials-grid">
-              {searchResults.map(item => {
-                const company = item.company;
-                return (
-                  <div className="material-card" key={item.id}>
-                    <div className="material-header">
+          </div>
+          
+          <div className="materials-grid enhanced">
+            {displayMaterials.map(item => {
+              const company = item.company || getCompanyById(item.companyId);
+              const estimatedTransport = item.estimatedTransport || 
+                (company && currentUser ? calculateTransportCost(
+                  company.lat, company.lng,
+                  currentUser.lat || 9.0320, currentUser.lng || 38.7469,
+                  item.minOrder
+                ) : 0);
+              
+              const distance = item.distance || 
+                (company && currentUser ? calculateDistance(
+                  company.lat, company.lng,
+                  currentUser.lat || 9.0320, currentUser.lng || 38.7469
+                ) : 0);
+              
+              return (
+                <div className="material-card enhanced" key={item.id}>
+                  <div className="material-header">
+                    <div className="material-title-section">
                       <h3 className="material-title">{item.name}</h3>
-                      <span className="material-category">{item.category}</span>
-                      <div className="material-supplier">
-                        <i className="fas fa-building"></i>
-                        <span>{company ? company.name : 'Unknown Supplier'}</span>
-                        <span className="badge badge-success">{company ? company.rating + '/5' : 'N/A'}</span>
+                      <div className="material-meta">
+                        <span className="material-category">{item.category}</span>
+                        {item.brand && <span className="material-brand">{item.brand}</span>}
                       </div>
                     </div>
-                    <div className="material-body">
-                      <p>{item.description}</p>
-                      <div className="material-price">{formatCurrency(item.price)} / {item.unit}</div>
-                      <div className="material-stats">
-                        <div className="stat-item">
-                          <div className="value">{formatCurrency(item.price)}</div>
-                          <div className="label">Product Cost</div>
+                    <div className="material-supplier">
+                      <i className="fas fa-building"></i>
+                      <div className="supplier-info">
+                        <span className="supplier-name">{company ? company.name : 'Unknown Supplier'}</span>
+                        <span className="supplier-location">
+                          <i className="fas fa-map-marker-alt"></i> {company?.location}
+                          {distance > 0 && ` (${distance.toFixed(1)} km)`}
+                        </span>
+                        {company?.tinNumber && (
+                          <span className="supplier-tin">
+                            <i className="fas fa-file-contract"></i> TIN: {company.tinNumber}
+                          </span>
+                        )}
+                      </div>
+                      <span className="supplier-rating">
+                        <i className="fas fa-star"></i> {company ? company.rating : 'N/A'}/5
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="material-body">
+                    <p className="material-description">{item.description}</p>
+                    
+                    <div className="material-specs">
+                      {item.brand && (
+                        <div className="spec-item">
+                          <i className="fas fa-tag"></i>
+                          <span>Brand: {item.brand}</span>
                         </div>
-                        <div className="stat-item">
-                          <div className="value">~{formatCurrency(item.estimatedTransport || 0)}</div>
-                          <div className="label">Est. Transport</div>
+                      )}
+                      {item.model && (
+                        <div className="spec-item">
+                          <i className="fas fa-cube"></i>
+                          <span>Model: {item.model}</span>
                         </div>
-                        <div className="stat-item">
-                          <div className="value">{formatCurrency(item.totalCost || item.price)}</div>
-                          <div className="label">Total per Unit</div>
+                      )}
+                      {item.specifications.grade && (
+                        <div className="spec-item">
+                          <i className="fas fa-certificate"></i>
+                          <span>Grade: {item.specifications.grade}</span>
+                        </div>
+                      )}
+                      {item.specifications.weight && (
+                        <div className="spec-item">
+                          <i className="fas fa-weight"></i>
+                          <span>Weight: {item.specifications.weight}</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="material-price-section">
+                      <div className="main-price">
+                        <div className="price-amount">{formatCurrency(item.price)}</div>
+                        <div className="price-unit">per {item.unit}</div>
+                      </div>
+                      <div className="price-details">
+                        <div className="detail-item">
+                          <span className="label">Min Order:</span>
+                          <span className="value">{item.minOrder} {item.unit}</span>
+                        </div>
+                        <div className="detail-item">
+                          <span className="label">Available:</span>
+                          <span className="value">{item.quantity} {item.unit}</span>
+                        </div>
+                        <div className="detail-item">
+                          <span className="label">Est. Transport:</span>
+                          <span className="value">{formatCurrency(estimatedTransport)}</span>
+                        </div>
+                        <div className="detail-item">
+                          <span className="label">VAT:</span>
+                          <span className="value">{item.vatPercentage}% included</span>
                         </div>
                       </div>
-                      <button className="btn btn-primary w-100 mt-2" onClick={() => {
-                        setFormData(prev => ({ 
-                          ...prev, 
-                          orderQuantity: item.minOrder.toString(),
-                          orderAddress: currentUser?.address || ''
-                        }));
-                        showAlert(`Ready to order ${item.name}. Please enter quantity and address.`, 'info');
-                      }}>
+                    </div>
+                    
+                    <div className="material-actions">
+                      <button 
+                        className="btn btn-primary" 
+                        onClick={() => setSelectedMaterial(item)}
+                      >
+                        <i className="fas fa-eye"></i> View Full Specifications
+                      </button>
+                      <button 
+                        className="btn btn-secondary"
+                        onClick={() => {
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            orderQuantity: item.minOrder.toString(),
+                            orderAddress: currentUser?.address || ''
+                          }));
+                          handlePlaceOrder(item.id);
+                        }}
+                      >
                         <i className="fas fa-shopping-cart"></i> Order Now
                       </button>
-                      <button className="btn btn-secondary w-100 mt-2" onClick={() => handleContactSupplier(item.id)}>
+                      <button 
+                        className="btn btn-outline"
+                        onClick={() => handleContactSupplier(item.id)}
+                      >
                         <i className="fas fa-phone-alt"></i> Contact Supplier
                       </button>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
           </div>
-        ) : (
-          <div className="card">
-            <div className="card-header">
-              <h3 className="card-title">Available Products</h3>
-            </div>
-            <div className="materials-grid">
-              {materials.map((material: Material) => {
-                const company = getCompanyById(material.companyId);
-                return (
-                  <div className="material-card" key={material.id}>
-                    <div className="material-header">
-                      <h3 className="material-title">{material.name}</h3>
-                      <span className="material-category">{material.category}</span>
-                      <div className="material-supplier">
-                        <i className="fas fa-building"></i>
-                        <span>{company ? company.name : 'Unknown Supplier'}</span>
-                      </div>
-                    </div>
-                    <div className="material-body">
-                      <p>{material.description}</p>
-                      <div className="material-price">{formatCurrency(material.price)} / {material.unit}</div>
-                      <div className="material-stats">
-                        <div className="stat-item">
-                          <div className="value">{material.quantity}</div>
-                          <div className="label">In Stock</div>
-                        </div>
-                        <div className="stat-item">
-                          <div className="value">{material.minOrder}+</div>
-                          <div className="label">Min Order</div>
-                        </div>
-                        <div className="stat-item">
-                          <div className="value">{material.rating || '4.5'}/5</div>
-                          <div className="label">Rating</div>
-                        </div>
-                      </div>
-                      <button className="btn btn-primary w-100 mt-2" onClick={() => {
-                        setFormData(prev => ({ 
-                          ...prev, 
-                          orderQuantity: material.minOrder.toString(),
-                          orderAddress: currentUser?.address || ''
-                        }));
-                        handlePlaceOrder(material.id);
-                      }}>
-                        <i className="fas fa-shopping-cart"></i> Order Now
-                      </button>
-                      <button className="btn btn-secondary w-100 mt-2" onClick={() => handleContactSupplier(material.id)}>
-                        <i className="fas fa-phone-alt"></i> Contact Supplier
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        </div>
       </main>
     );
   };
@@ -1968,6 +2749,9 @@ function App() {
         })
       : orders.filter(o => o.customerId === currentUser?.id);
     
+    const totalValue = userOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+    const totalTax = userOrders.reduce((sum, order) => sum + order.vatAmount, 0);
+    
     return (
       <main className="main-content">
         <div className="dashboard-header">
@@ -1975,7 +2759,24 @@ function App() {
             <i className="fas fa-shopping-cart"></i>
             <h1>{isCompany ? 'Order Management' : 'My Orders'}</h1>
           </div>
-          <p className="dashboard-subtitle">{isCompany ? 'Manage customer orders' : 'Track your orders and deliveries'}</p>
+          <p className="dashboard-subtitle">
+            {isCompany ? 'Manage customer orders and generate invoices' : 'Track your orders and view invoices'}
+          </p>
+          
+          <div className="order-summary">
+            <div className="summary-item">
+              <span className="label">Total Orders:</span>
+              <span className="value">{userOrders.length}</span>
+            </div>
+            <div className="summary-item">
+              <span className="label">Total Value:</span>
+              <span className="value">{formatCurrency(totalValue)}</span>
+            </div>
+            <div className="summary-item">
+              <span className="label">Total VAT:</span>
+              <span className="value">{formatCurrency(totalTax)}</span>
+            </div>
+          </div>
         </div>
         
         <div className="table-responsive">
@@ -1983,13 +2784,14 @@ function App() {
             <thead>
               <tr>
                 <th>Order ID</th>
+                <th>{isCompany ? 'Customer' : 'Supplier'}</th>
                 <th>Product</th>
-                {isCompany ? <th>Customer</th> : <th>Supplier</th>}
                 <th>Quantity</th>
                 <th>Amount</th>
+                <th>Tax Details</th>
                 <th>Status</th>
                 <th>Date</th>
-                {isCompany ? <th>Actions</th> : null}
+                {isCompany ? <th>Actions</th> : <th>Invoice</th>}
               </tr>
             </thead>
             <tbody>
@@ -2000,239 +2802,397 @@ function App() {
                 
                 return (
                   <tr key={order.id}>
-                    <td><strong>{order.id}</strong></td>
-                    <td>{material ? material.name : 'Unknown'}</td>
+                    <td>
+                      <strong>{order.id}</strong><br/>
+                      <small className="invoice-number">{order.invoiceNumber}</small>
+                    </td>
                     <td>
                       {isCompany 
                         ? (customer ? customer.name : 'Unknown') 
-                        : (company ? company.name : 'Unknown')}
+                        : (company ? `${company.name}` : 'Unknown')}
+                      <br/>
+                      <small>{isCompany ? customer?.phone : company?.tinNumber}</small>
+                    </td>
+                    <td>
+                      {material ? material.name : 'Unknown'}<br/>
+                      <small>{material?.brand} | {material?.model}</small>
                     </td>
                     <td>{order.quantity} {material ? material.unit : ''}</td>
-                    <td>{formatCurrency(order.totalAmount)}</td>
                     <td>
-                      {order.status === 'delivered' ? <span className="badge badge-success">Delivered</span> :
-                       order.status === 'in_transit' ? <span className="badge badge-warning">In Transit</span> :
-                       order.status === 'pending' ? <span className="badge badge-primary">Pending</span> :
-                       <span className="badge badge-danger">Cancelled</span>}
+                      <div className="amount-details">
+                        <div className="total">{formatCurrency(order.totalAmount)}</div>
+                        <div className="breakdown">
+                          <small>Product: {formatCurrency(order.unitPrice * order.quantity)}</small><br/>
+                          <small>Transport: {formatCurrency(order.transportCost)}</small><br/>
+                          <small>VAT: {formatCurrency(order.vatAmount)}</small>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="tax-info">
+                        <span className="tax-badge">VAT: {formatCurrency(order.vatAmount)}</span><br/>
+                        <small>Rate: 15%</small>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="status-cell">
+                        {order.status === 'delivered' ? (
+                          <>
+                            <span className="badge badge-success">Delivered</span>
+                            <small>{order.deliveryDate && formatDate(order.deliveryDate)}</small>
+                          </>
+                        ) : order.status === 'in_transit' ? (
+                          <>
+                            <span className="badge badge-warning">In Transit</span>
+                            <small>Est. delivery soon</small>
+                          </>
+                        ) : order.status === 'pending' ? (
+                          <>
+                            <span className="badge badge-primary">Pending</span>
+                            <small>Awaiting confirmation</small>
+                          </>
+                        ) : (
+                          <>
+                            <span className="badge badge-danger">Cancelled</span>
+                          </>
+                        )}
+                      </div>
                     </td>
                     <td>{formatDate(order.orderDate)}</td>
-                    {isCompany ? (
-                      <td>
-                        {order.status === 'pending' ? (
-                          <div className="table-actions">
-                            <button className="btn-action btn-success" onClick={() => handleUpdateOrderStatus(order.id, 'confirmed')}>
-                              <i className="fas fa-check"></i> Confirm
+                    <td>
+                      {isCompany ? (
+                        <div className="table-actions">
+                          {order.status === 'pending' && (
+                            <>
+                              <button className="btn-action btn-success" onClick={() => handleUpdateOrderStatus(order.id, 'confirmed')}>
+                                <i className="fas fa-check"></i> Confirm
+                              </button>
+                              <button className="btn-action btn-danger" onClick={() => handleUpdateOrderStatus(order.id, 'cancelled')}>
+                                <i className="fas fa-times"></i> Cancel
+                              </button>
+                            </>
+                          )}
+                          {order.status === 'confirmed' && (
+                            <button className="btn-action btn-warning" onClick={() => handleUpdateOrderStatus(order.id, 'in_transit')}>
+                              <i className="fas fa-truck"></i> Ship
                             </button>
-                            <button className="btn-action btn-danger" onClick={() => handleUpdateOrderStatus(order.id, 'cancelled')}>
-                              <i className="fas fa-times"></i> Cancel
+                          )}
+                          {order.status === 'in_transit' && (
+                            <button className="btn-action btn-success" onClick={() => handleUpdateOrderStatus(order.id, 'delivered')}>
+                              <i className="fas fa-check-circle"></i> Deliver
                             </button>
-                          </div>
-                        ) : order.status === 'confirmed' ? (
-                          <button className="btn-action btn-warning" onClick={() => handleUpdateOrderStatus(order.id, 'in_transit')}>
-                            <i className="fas fa-truck"></i> Ship
-                          </button>
-                        ) : order.status === 'in_transit' ? (
-                          <button className="btn-action btn-success" onClick={() => handleUpdateOrderStatus(order.id, 'delivered')}>
-                            <i className="fas fa-check-circle"></i> Deliver
-                          </button>
-                        ) : 'Completed'}
-                      </td>
-                    ) : null}
+                          )}
+                        </div>
+                      ) : (
+                        <button className="btn-action btn-view">
+                          <i className="fas fa-file-invoice"></i> Invoice
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
+        
+        {userOrders.length > 0 && (
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">Order Summary</h3>
+            </div>
+            <div className="order-total-summary">
+              <div className="total-item">
+                <span>Subtotal (Products):</span>
+                <span>{formatCurrency(userOrders.reduce((sum, o) => sum + (o.unitPrice * o.quantity), 0))}</span>
+              </div>
+              <div className="total-item">
+                <span>Transport Total:</span>
+                <span>{formatCurrency(userOrders.reduce((sum, o) => sum + o.transportCost, 0))}</span>
+              </div>
+              <div className="total-item">
+                <span>VAT Total (15%):</span>
+                <span>{formatCurrency(totalTax)}</span>
+              </div>
+              <div className="total-item grand-total">
+                <span>Grand Total:</span>
+                <span>{formatCurrency(totalValue)}</span>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     );
   };
 
-  const renderAnalytics = () => (
-    <main className="main-content">
-      <div className="dashboard-header">
-        <div className="dashboard-title">
-          <i className="fas fa-chart-line"></i>
-          <h1>Analytics Dashboard</h1>
-        </div>
-        <p className="dashboard-subtitle">AI-powered insights and market trends for Ethiopian businesses</p>
-      </div>
-      
-      <div className="dashboard-grid">
-        <div className="dashboard-card">
-          <div className="card-header">
-            <h3 className="card-title">Price Trends</h3>
-            <div className="card-icon"><i className="fas fa-chart-bar"></i></div>
+  const renderAnalytics = () => {
+    const company = currentUser ? getCompanyByUserId(currentUser.id) : null;
+    const companyMaterials = company ? materials.filter(m => m.companyId === company.id) : [];
+    const companyOrders = company ? orders.filter(o => o.companyId === company.id) : [];
+    
+    const monthlyRevenue = companyOrders.reduce((acc, order) => {
+      const month = new Date(order.orderDate).getMonth();
+      acc[month] = (acc[month] || 0) + order.totalAmount;
+      return acc;
+    }, {} as Record<number, number>);
+    
+    return (
+      <main className="main-content">
+        <div className="dashboard-header">
+          <div className="dashboard-title">
+            <i className="fas fa-chart-line"></i>
+            <h1>Analytics Dashboard</h1>
           </div>
-          <div className="stat-value">+5.2%</div>
-          <p className="stat-label">Overall price increase this month</p>
+          <p className="dashboard-subtitle">AI-powered insights and market trends for Ethiopian businesses</p>
         </div>
         
-        <div className="dashboard-card">
-          <div className="card-header">
-            <h3 className="card-title">Product Distribution</h3>
-            <div className="card-icon"><i className="fas fa-chart-pie"></i></div>
+        <div className="dashboard-grid">
+          <div className="dashboard-card">
+            <div className="card-header">
+              <h3 className="card-title">Price Trends</h3>
+              <div className="card-icon"><i className="fas fa-chart-bar"></i></div>
+            </div>
+            <div className="stat-value">+5.2%</div>
+            <p className="stat-label">Overall price increase this month</p>
           </div>
-          <div className="stat-value">{materials.length}</div>
-          <p className="stat-label">Total products listed</p>
+          
+          <div className="dashboard-card">
+            <div className="card-header">
+              <h3 className="card-title">Monthly Revenue</h3>
+              <div className="card-icon"><i className="fas fa-money-bill-wave"></i></div>
+            </div>
+            <div className="stat-value">{formatCurrency(Object.values(monthlyRevenue).reduce((a, b) => a + b, 0))}</div>
+            <p className="stat-label">This month</p>
+          </div>
+          
+          <div className="dashboard-card">
+            <div className="card-header">
+              <h3 className="card-title">Top Department</h3>
+              <div className="card-icon"><i className="fas fa-star"></i></div>
+            </div>
+            <div className="stat-value">Construction</div>
+            <p className="stat-label">Most active department</p>
+          </div>
+          
+          <div className="dashboard-card">
+            <div className="card-header">
+              <h3 className="card-title">Revenue Forecast</h3>
+              <div className="card-icon"><i className="fas fa-chart-line"></i></div>
+            </div>
+            <div className="stat-value">+12.5%</div>
+            <p className="stat-label">Next quarter growth</p>
+          </div>
         </div>
         
-        <div className="dashboard-card">
+        <div className="card">
           <div className="card-header">
-            <h3 className="card-title">Top Department</h3>
-            <div className="card-icon"><i className="fas fa-star"></i></div>
+            <h3 className="card-title">AI Price Forecast</h3>
+            <div className="badge badge-primary">Next 30 Days</div>
           </div>
-          <div className="stat-value">Construction</div>
-          <p className="stat-label">Most active department</p>
+          <div className="p-2">
+            <div className="forecast-chart-placeholder">
+              <i className="fas fa-chart-line"></i>
+              <p>Price forecasting chart would be displayed here</p>
+            </div>
+            <div className="forecast-details">
+              <div className="forecast-item positive">
+                <i className="fas fa-arrow-up"></i>
+                <div>
+                  <strong>Construction Materials:</strong> Expected increase of 5-8%
+                </div>
+              </div>
+              <div className="forecast-item stable">
+                <i className="fas fa-minus"></i>
+                <div>
+                  <strong>Agricultural Supplies:</strong> Prices stabilizing
+                </div>
+              </div>
+              <div className="forecast-item positive">
+                <i className="fas fa-arrow-up"></i>
+                <div>
+                  <strong>Medical Supplies:</strong> Steady 3-5% growth expected
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         
-        <div className="dashboard-card">
+        <div className="card">
           <div className="card-header">
-            <h3 className="card-title">Revenue Forecast</h3>
-            <div className="card-icon"><i className="fas fa-money-bill-wave"></i></div>
+            <h3 className="card-title">Top Performing Products</h3>
           </div>
-          <div className="stat-value">+12.5%</div>
-          <p className="stat-label">Next quarter growth</p>
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Department</th>
+                  <th>Avg Price</th>
+                  <th>Demand Trend</th>
+                  <th>Profit Margin</th>
+                  <th>AI Recommendation</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Portland Cement</td>
+                  <td><span className="badge badge-primary">Construction</span></td>
+                  <td>{formatCurrency(850)}</td>
+                  <td><span className="badge badge-success">↑ 12%</span></td>
+                  <td>25%</td>
+                  <td><span className="badge badge-success">Increase Stock</span></td>
+                </tr>
+                <tr>
+                  <td>Medical Gloves</td>
+                  <td><span className="badge badge-primary">Healthcare</span></td>
+                  <td>{formatCurrency(120)}</td>
+                  <td><span className="badge badge-success">↑ 15%</span></td>
+                  <td>30%</td>
+                  <td><span className="badge badge-success">Increase Stock</span></td>
+                </tr>
+                <tr>
+                  <td>Urea Fertilizer</td>
+                  <td><span className="badge badge-primary">Agriculture</span></td>
+                  <td>{formatCurrency(950)}</td>
+                  <td><span className="badge badge-warning">→ Stable</span></td>
+                  <td>18%</td>
+                  <td><span className="badge badge-warning">Maintain Level</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-      
-      <div className="card">
-        <div className="card-header">
-          <h3 className="card-title">AI Price Forecast</h3>
-          <div className="badge badge-primary">Next 30 Days</div>
-        </div>
-        <div className="p-2">
-          <p><strong>AI Insights:</strong> Construction materials expected to increase by 5-8% due to rising demand. Agricultural supplies stabilizing. Consider stocking before rainy season.</p>
-        </div>
-      </div>
-      
-      <div className="card">
-        <div className="card-header">
-          <h3 className="card-title">Top Performing Products</h3>
-        </div>
-        <div className="table-responsive">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>Department</th>
-                <th>Avg Price</th>
-                <th>Demand Trend</th>
-                <th>Profit Margin</th>
-                <th>AI Recommendation</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Portland Cement</td>
-                <td><span className="badge badge-primary">Construction</span></td>
-                <td>{formatCurrency(850)}</td>
-                <td><span className="badge badge-success">↑ 12%</span></td>
-                <td>25%</td>
-                <td><span className="badge badge-success">Increase Stock</span></td>
-              </tr>
-              <tr>
-                <td>Medical Gloves</td>
-                <td><span className="badge badge-primary">Healthcare</span></td>
-                <td>{formatCurrency(120)}</td>
-                <td><span className="badge badge-success">↑ 15%</span></td>
-                <td>30%</td>
-                <td><span className="badge badge-success">Increase Stock</span></td>
-              </tr>
-              <tr>
-                <td>Urea Fertilizer</td>
-                <td><span className="badge badge-primary">Agriculture</span></td>
-                <td>{formatCurrency(950)}</td>
-                <td><span className="badge badge-warning">→ Stable</span></td>
-                <td>18%</td>
-                <td><span className="badge badge-warning">Maintain Level</span></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </main>
-  );
+        
+        {company && (
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">Your Business Performance</h3>
+            </div>
+            <div className="performance-metrics">
+              <div className="metric">
+                <div className="metric-value">{companyMaterials.length}</div>
+                <div className="metric-label">Products Listed</div>
+              </div>
+              <div className="metric">
+                <div className="metric-value">{companyOrders.length}</div>
+                <div className="metric-label">Total Orders</div>
+              </div>
+              <div className="metric">
+                <div className="metric-value">{company.rating}/5</div>
+                <div className="metric-label">Customer Rating</div>
+              </div>
+              <div className="metric">
+                <div className="metric-value">{formatCurrency(companyOrders.reduce((sum, o) => sum + o.totalAmount, 0))}</div>
+                <div className="metric-label">Total Revenue</div>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+    );
+  };
 
-  const renderSupplierMap = () => (
-    <main className="main-content">
-      <div className="dashboard-header">
-        <div className="dashboard-title">
-          <i className="fas fa-map-marked-alt"></i>
-          <h1>Supplier Map</h1>
+  const renderSupplierMap = () => {
+    const userLocation = currentUser ? { lat: currentUser.lat || 9.0320, lng: currentUser.lng || 38.7469 } : null;
+    
+    return (
+      <main className="main-content">
+        <div className="dashboard-header">
+          <div className="dashboard-title">
+            <i className="fas fa-map-marked-alt"></i>
+            <h1>Supplier Map</h1>
+          </div>
+          <p className="dashboard-subtitle">Interactive map showing suppliers across all Ethiopian regions with transport cost calculations</p>
         </div>
-        <p className="dashboard-subtitle">Interactive map showing suppliers across all Ethiopian regions with transport cost calculations</p>
-      </div>
-      
-      <div className="map-container">
-        <div className="map-placeholder">
-          <i className="fas fa-map-marked-alt" style={{ fontSize: '4rem', color: 'var(--primary)', marginBottom: '1rem' }}></i>
-          <h3>GIS Supplier Map</h3>
-          <p>Supplier locations across Ethiopian regions would be displayed here with interactive markers</p>
-          <p>Transport costs calculated based on distance from your location</p>
+        
+        <div className="map-container">
+          <div className="map-placeholder">
+            <i className="fas fa-map-marked-alt"></i>
+            <h3>GIS Supplier Map</h3>
+            <p>Supplier locations across Ethiopian regions would be displayed here with interactive markers</p>
+            <p>Transport costs calculated based on distance from your location</p>
+            {userLocation && (
+              <div className="user-location-info">
+                <i className="fas fa-map-pin"></i>
+                Your Location: {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
-      
-      <div className="card">
-        <div className="card-header">
-          <h3 className="card-title">Suppliers by Region</h3>
-          <div className="badge badge-primary">{companies.length} Suppliers</div>
-        </div>
-        <div className="table-responsive">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Company</th>
-                <th>Location</th>
-                <th>Region</th>
-                <th>Products</th>
-                <th>Avg Price</th>
-                <th>Rating</th>
-                <th>Est. Transport Cost*</th>
-              </tr>
-            </thead>
-            <tbody>
-              {companies.map((company: Company) => {
-                const companyMaterials = materials.filter(m => m.companyId === company.id);
-                const avgPrice = companyMaterials.length > 0 
-                  ? companyMaterials.reduce((sum: number, m: Material) => sum + m.price, 0) / companyMaterials.length 
-                  : 0;
-                
-                let estTransport = 'N/A';
-                if (currentUser) {
-                  estTransport = formatCurrency(calculateTransportCost(
+        
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">Suppliers by Region</h3>
+            <div className="badge badge-primary">{companies.length} Verified Suppliers</div>
+          </div>
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Company</th>
+                  <th>Location</th>
+                  <th>Region</th>
+                  <th>TIN Number</th>
+                  <th>Products</th>
+                  <th>Rating</th>
+                  <th>Est. Transport Cost*</th>
+                </tr>
+              </thead>
+              <tbody>
+                {companies.map((company: Company) => {
+                  const companyMaterials = materials.filter(m => m.companyId === company.id);
+                  const distance = userLocation ? calculateDistance(
                     company.lat, company.lng,
-                    currentUser.lat || 9.0320, currentUser.lng || 38.7469,
+                    userLocation.lat, userLocation.lng
+                  ) : 0;
+                  
+                  const estTransport = userLocation ? calculateTransportCost(
+                    company.lat, company.lng,
+                    userLocation.lat, userLocation.lng,
                     100
-                  ));
-                }
-                
-                return (
-                  <tr key={company.id}>
-                    <td><strong>{company.name}</strong></td>
-                    <td>{company.location}</td>
-                    <td>
-                      {company.location.includes('Addis') ? 'Addis Ababa' :
-                       company.location.includes('Bole') ? 'Addis Ababa' :
-                       company.location.includes('Merkato') ? 'Addis Ababa' :
-                       company.location.includes('Kaliti') ? 'Addis Ababa' : 'Oromia'}
-                    </td>
-                    <td>{companyMaterials.length} items</td>
-                    <td>{formatCurrency(avgPrice)}</td>
-                    <td>{company.rating || '4.5'}/5</td>
-                    <td>{estTransport}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                  ) : 0;
+                  
+                  return (
+                    <tr key={company.id}>
+                      <td>
+                        <strong>{company.name}</strong><br/>
+                        <small>{company.complianceStatus === 'compliant' ? 
+                          <span className="badge badge-success">Compliant</span> : 
+                          <span className="badge badge-warning">Pending</span>}
+                        </small>
+                      </td>
+                      <td>{company.location}</td>
+                      <td>
+                        {company.location.includes('Addis') ? 'Addis Ababa' :
+                         company.location.includes('Bole') ? 'Addis Ababa' :
+                         company.location.includes('Merkato') ? 'Addis Ababa' :
+                         company.location.includes('Kaliti') ? 'Addis Ababa' : 'Oromia'}
+                      </td>
+                      <td>{company.tinNumber || 'Not Registered'}</td>
+                      <td>{companyMaterials.length} items</td>
+                      <td>
+                        <div className="rating-display">
+                          <i className="fas fa-star"></i> {company.rating || '4.5'}/5
+                        </div>
+                      </td>
+                      <td>
+                        {formatCurrency(estTransport)}
+                        {distance > 0 && <br/>}
+                        {distance > 0 && <small>{distance.toFixed(1)} km away</small>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="p-2">
+            <p><small>*Estimated transport cost for 100 units from your location</small></p>
+          </div>
         </div>
-        <div className="p-2">
-          <p><small>*Estimated transport cost for 100 units from your location</small></p>
-        </div>
-      </div>
-    </main>
-  );
+      </main>
+    );
+  };
 
   const renderPriceForecast = () => (
     <main className="main-content">
@@ -2251,7 +3211,7 @@ function App() {
         </div>
         <div className="p-2">
           <div className="forecast-chart-placeholder">
-            <i className="fas fa-chart-line" style={{ fontSize: '3rem', color: 'var(--primary)', marginBottom: '1rem' }}></i>
+            <i className="fas fa-chart-line"></i>
             <p>Price forecasting chart would be displayed here</p>
           </div>
         </div>
@@ -2312,6 +3272,10 @@ function App() {
             <i className="fas fa-exclamation-triangle"></i>
             <strong>Market Alert:</strong> Agricultural product prices may fluctuate during rainy season (June-September). Plan procurement accordingly.
           </div>
+          <div className="alert alert-primary">
+            <i className="fas fa-file-contract"></i>
+            <strong>Tax Compliance:</strong> Ensure all transactions include proper VAT documentation as per Ethiopian Revenue and Customs Authority guidelines.
+          </div>
         </div>
       </div>
     </main>
@@ -2344,12 +3308,19 @@ function App() {
                 </div>
                 <div className="tin-detail-item">
                   <label>Status:</label>
-                  <span className="badge badge-success">Active</span>
+                  <span className="badge badge-success">Active & Compliant</span>
                 </div>
+              </div>
+              <div className="compliance-note">
+                <i className="fas fa-check-circle"></i>
+                Your business is compliant with Ethiopian Revenue and Customs Authority regulations.
               </div>
               <div className="tin-actions">
                 <button className="btn btn-secondary" onClick={() => navigateTo('company-dashboard')}>
                   <i className="fas fa-arrow-left"></i> Back to Dashboard
+                </button>
+                <button className="btn btn-primary" onClick={() => window.print()}>
+                  <i className="fas fa-print"></i> Print Certificate
                 </button>
               </div>
             </div>
@@ -2373,7 +3344,7 @@ function App() {
       <main className="main-content">
         <div className="form-container">
           <h2 className="form-title">Register Taxpayer Identification Number (TIN)</h2>
-          <p className="form-subtitle">Register your business TIN for Ethiopian tax purposes</p>
+          <p className="form-subtitle">Register your business TIN for Ethiopian tax purposes as required by law</p>
           
           <form onSubmit={handleTinRegistration}>
             <div className="form-row">
@@ -2429,6 +3400,20 @@ function App() {
               </div>
               
               <div className="form-group">
+                <label className="form-label">VAT Number</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  name="vatNumber"
+                  value={tinData.vatNumber}
+                  onChange={handleTinInputChange}
+                  placeholder="VAT00123456 (if applicable)"
+                />
+              </div>
+            </div>
+            
+            <div className="form-row">
+              <div className="form-group">
                 <label className="form-label">Region *</label>
                 <select 
                   className="form-select" 
@@ -2442,6 +3427,19 @@ function App() {
                     <option key={region} value={region}>{region}</option>
                   ))}
                 </select>
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">Trade License Number *</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  name="tradeLicense"
+                  value={tinData.tradeLicense}
+                  onChange={handleTinInputChange}
+                  required
+                  placeholder="e.g., BL/ET/2023/001"
+                />
               </div>
             </div>
             
@@ -2484,21 +3482,45 @@ function App() {
               />
             </div>
             
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Registration Date *</label>
+                <input 
+                  type="date" 
+                  className="form-input" 
+                  name="registrationDate"
+                  value={tinData.registrationDate}
+                  onChange={handleTinInputChange}
+                  required 
+                />
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">License Expiry Date *</label>
+                <input 
+                  type="date" 
+                  className="form-input" 
+                  name="licenseExpiry"
+                  value={tinData.licenseExpiry}
+                  onChange={handleTinInputChange}
+                  required 
+                />
+              </div>
+            </div>
+            
             <div className="form-group">
-              <label className="form-label">Registration Date *</label>
-              <input 
-                type="date" 
-                className="form-input" 
-                name="registrationDate"
-                value={tinData.registrationDate}
-                onChange={handleTinInputChange}
-                required 
-              />
+              <label className="form-label">
+                <input type="checkbox" required /> I certify that all information provided is accurate
+              </label>
+              <p className="form-hint">
+                By submitting, you agree to comply with Ethiopian tax laws and regulations.
+                False information may result in legal action.
+              </p>
             </div>
             
             <div className="form-actions">
               <button type="submit" className="btn-submit">
-                <i className="fas fa-file-contract"></i> Register TIN
+                <i className="fas fa-file-contract"></i> Register TIN & Become Compliant
               </button>
               <button type="button" className="btn-secondary" onClick={() => navigateTo('company-dashboard')}>
                 <i className="fas fa-times"></i> Cancel
@@ -2507,14 +3529,21 @@ function App() {
           </form>
           
           <div className="tin-info-box">
-            <h4><i className="fas fa-info-circle"></i> About TIN Registration</h4>
-            <p>In Ethiopia, a Taxpayer Identification Number (TIN) is required for all businesses engaging in commercial activities.</p>
+            <h4><i className="fas fa-info-circle"></i> About Ethiopian TIN Registration</h4>
+            <p>The Taxpayer Identification Number (TIN) is mandatory for all businesses in Ethiopia under Proclamation No. 983/2016.</p>
             <ul>
-              <li>TIN is issued by the Ethiopian Revenue and Customs Authority (ERCA)</li>
-              <li>Required for tax filing, customs clearance, and business transactions</li>
-              <li>Valid for the lifetime of the business</li>
-              <li>Must be renewed annually for tax purposes</li>
+              <li><strong>Legal Requirement:</strong> All businesses must register for TIN with the Ethiopian Revenue and Customs Authority (ERCA)</li>
+              <li><strong>Tax Compliance:</strong> Required for tax filing, customs clearance, and business transactions</li>
+              <li><strong>Validity:</strong> TIN is valid for the lifetime of the business</li>
+              <li><strong>Annual Renewal:</strong> Must be renewed annually for tax purposes</li>
+              <li><strong>VAT Registration:</strong> Businesses with annual turnover above 1,000,000 ETB must register for VAT</li>
+              <li><strong>Penalties:</strong> Failure to register may result in fines and business suspension</li>
             </ul>
+            <div className="legal-note">
+              <i className="fas fa-balance-scale"></i>
+              <strong>Legal Note:</strong> This platform complies with Ethiopian commercial code and tax regulations.
+              All transactions are recorded for tax audit purposes.
+            </div>
           </div>
         </div>
       </main>
@@ -2528,6 +3557,7 @@ function App() {
           <h3>EthioSupply AI</h3>
           <p>AI-driven platform optimizing supply chains across all departments in Ethiopia. Master's Program Project.</p>
           <p><i className="fas fa-map-marker-alt"></i> Serving All Regions of Ethiopia</p>
+          <p><i className="fas fa-balance-scale"></i> Compliant with Ethiopian Trade Regulations</p>
         </div>
         
         <div className="footer-section">
@@ -2550,232 +3580,33 @@ function App() {
         </div>
         
         <div className="footer-section">
-          <h3>Contact</h3>
+          <h3>Contact & Compliance</h3>
           <ul className="footer-links">
             <li><a href="#"><i className="fas fa-envelope"></i> meharinageb@gmail.com</a></li>
             <li><a href="#"><i className="fas fa-phone"></i> +251909919154</a></li>
-            <li><a href="#"><i className="fas fa-university"></i> Ethiopian Business Portal</a></li>
+            <li><a href="#"><i className="fas fa-university"></i> Ethiopian Revenue & Customs</a></li>
+            <li><a href="#"><i className="fas fa-gavel"></i> Trade Regulations</a></li>
           </ul>
         </div>
       </div>
       
       <div className="copyright">
-        <p>© 2024 EthioSupply AI Platform | Master's Program Project | All data is stored locally in your browser</p>
+        <p>© 2024 EthioSupply AI Platform | Master's Program Project | Compliant with Ethiopian Commercial Code & Tax Laws | All data is stored locally in your browser</p>
+        <p className="disclaimer">
+          <i className="fas fa-exclamation-triangle"></i>
+          Disclaimer: This platform follows Ethiopian trade regulations. Users are responsible for proper TIN registration and tax compliance.
+        </p>
       </div>
     </footer>
   );
-
-  // Add CSS for hybrid input
-  const addHybridInputStyles = () => {
-    return `
-      <style>
-        .hybrid-input-container {
-          position: relative;
-        }
-        
-        .hybrid-input {
-          width: 100%;
-          padding-right: 40px;
-        }
-        
-        .input-hint {
-          position: absolute;
-          right: 10px;
-          top: 50%;
-          transform: translateY(-50%);
-          color: var(--gray);
-          font-size: 0.85rem;
-          display: flex;
-          align-items: center;
-          gap: 5px;
-          pointer-events: none;
-        }
-        
-        .hybrid-input:focus + .input-hint {
-          opacity: 0.7;
-        }
-        
-        .unit-selection {
-          position: relative;
-        }
-        
-        .unit-hint {
-          margin-top: 0.25rem;
-          color: var(--gray);
-          font-size: 0.8rem;
-          display: flex;
-          align-items: center;
-          gap: 5px;
-        }
-        
-        .departments-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-          gap: 1rem;
-          margin-top: 1.5rem;
-        }
-        
-        .department-badge {
-          background: var(--light);
-          border: 1px solid var(--border);
-          border-radius: 8px;
-          padding: 0.75rem;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          transition: all 0.3s ease;
-        }
-        
-        .department-badge:hover {
-          background: var(--primary-light);
-          border-color: var(--primary);
-        }
-        
-        .footer-departments {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.5rem;
-        }
-        
-        .footer-dept-badge {
-          background: rgba(255, 255, 255, 0.1);
-          padding: 0.25rem 0.5rem;
-          border-radius: 4px;
-          font-size: 0.8rem;
-        }
-        
-        .tin-display {
-          background: var(--success-light);
-          border: 1px solid var(--success);
-          border-radius: 8px;
-          padding: 0.75rem;
-          margin-top: 1rem;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-        
-        .tin-badge {
-          background: var(--primary);
-          color: white;
-          padding: 0.2rem 0.5rem;
-          border-radius: 4px;
-          font-size: 0.8rem;
-          margin-left: 0.5rem;
-        }
-        
-        .tin-status-card {
-          background: white;
-          border-radius: 12px;
-          padding: 2rem;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-          text-align: center;
-        }
-        
-        .tin-status-header {
-          margin-bottom: 2rem;
-        }
-        
-        .tin-status-header .fa-file-contract {
-          font-size: 4rem;
-          margin-bottom: 1rem;
-        }
-        
-        .tin-status-header .fa-file-contract.success {
-          color: var(--success);
-        }
-        
-        .tin-details {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-          gap: 1.5rem;
-          margin-bottom: 2rem;
-          text-align: left;
-        }
-        
-        .tin-detail-item {
-          background: var(--light);
-          padding: 1rem;
-          border-radius: 8px;
-        }
-        
-        .tin-detail-item label {
-          display: block;
-          font-weight: 600;
-          color: var(--dark);
-          margin-bottom: 0.5rem;
-        }
-        
-        .tin-value {
-          font-size: 1.1rem;
-          color: var(--primary);
-        }
-        
-        .tin-info-box {
-          background: var(--light);
-          border-left: 4px solid var(--primary);
-          padding: 1rem;
-          margin-top: 2rem;
-          border-radius: 0 8px 8px 0;
-        }
-        
-        .tin-info-box h4 {
-          margin-top: 0;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-        
-        .tin-actions {
-          display: flex;
-          justify-content: center;
-          gap: 1rem;
-        }
-        
-        .form-actions {
-          display: flex;
-          gap: 1rem;
-          margin-top: 2rem;
-        }
-        
-        .form-actions .btn-secondary {
-          background: var(--gray-light);
-          color: var(--dark);
-        }
-        
-        .form-actions .btn-secondary:hover {
-          background: var(--gray);
-        }
-      </style>
-    `;
-  };
-
-  // Render current page
-  const renderCurrentPage = () => {
-    switch (currentPage) {
-      case 'home': return renderHome();
-      case 'login': return renderLogin();
-      case 'register': return renderRegister();
-      case 'company-dashboard': return renderCompanyDashboard();
-      case 'customer-dashboard': return renderCustomerDashboard();
-      case 'add-material': return renderAddMaterial();
-      case 'search-materials': return renderSearchMaterials();
-      case 'orders': return renderOrders();
-      case 'analytics': return renderAnalytics();
-      case 'supplier-map': return renderSupplierMap();
-      case 'price-forecast': return renderPriceForecast();
-      case 'tin-registration': return renderTinRegistration();
-      default: return renderHome();
-    }
-  };
 
   return (
     <div className="app-container">
       {renderHeader()}
       {renderAlert()}
       {renderCurrentPage()}
+      {renderMaterialDetails()}
       {renderFooter()}
-      <div dangerouslySetInnerHTML={{ __html: addHybridInputStyles() }} />
     </div>
   );
 }
