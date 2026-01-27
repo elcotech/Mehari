@@ -51,7 +51,6 @@ interface Material {
   minOrder: number;
   transportCost?: number;
   rating?: number;
-  // Detailed Specifications
   brand?: string;
   model?: string;
   specifications: {
@@ -123,7 +122,6 @@ interface FormData {
   searchSortBy: 'price_asc' | 'price_desc' | 'distance_asc' | 'distance_desc' | 'rating_desc' | 'newest';
   orderQuantity: string;
   orderAddress: string;
-  // New fields for detailed specifications
   materialBrand: string;
   materialModel: string;
   materialWeight: string;
@@ -168,7 +166,7 @@ const CERTIFICATION_STANDARDS = [
 ];
 
 function App() {
-  // State Management with proper types
+  // State Management
   const [currentPage, setCurrentPage] = useState<string>('home');
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const savedUser = localStorage.getItem('currentUser');
@@ -242,7 +240,6 @@ function App() {
     materialCertifications: '',
   });
 
-  // New state for TIN registration
   const [tinData, setTinData] = useState({
     tinNumber: '',
     businessName: '',
@@ -257,7 +254,7 @@ function App() {
     licenseExpiry: ''
   });
 
-  // Initialize with enhanced sample data
+  // Initialize with sample data
   useEffect(() => {
     if (users.length === 0) {
       const sampleUsers: User[] = [
@@ -549,7 +546,7 @@ function App() {
     localStorage.setItem('tins', JSON.stringify(tins));
   }, [tins]);
 
-  // Utility Functions with proper types
+  // Utility Functions
   const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('en-ET', {
       style: 'currency',
@@ -575,7 +572,7 @@ function App() {
   };
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 6371; // Earth's radius in km
+    const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -601,7 +598,6 @@ function App() {
   const getCompanyByUserId = (userId: string): Company | undefined => companies.find(c => c.userId === userId);
   const getTinByUserId = (userId: string) => tins.find(t => t.userId === userId);
 
-  // Check if user is locked
   const isUserLocked = (user: User): boolean => {
     if (user.lockUntil && user.lockUntil > Date.now()) {
       return true;
@@ -609,7 +605,6 @@ function App() {
     return false;
   };
 
-  // Reset login attempts after lock period
   const resetLoginAttempts = (userId: string): void => {
     setUsers(prev => prev.map(user => {
       if (user.id === userId && user.lockUntil && user.lockUntil <= Date.now()) {
@@ -623,7 +618,6 @@ function App() {
     }));
   };
 
-  // TIN Registration Handler
   const handleTinRegistration = (e: React.FormEvent): void => {
     e.preventDefault();
     
@@ -632,7 +626,6 @@ function App() {
       return;
     }
     
-    // Check if user already has TIN
     const existingTin = getTinByUserId(currentUser.id);
     if (existingTin) {
       showAlert('You already have a registered TIN', 'warning');
@@ -649,7 +642,6 @@ function App() {
     
     setTins(prev => [...prev, newTin]);
     
-    // Update company with TIN info
     const company = getCompanyByUserId(currentUser.id);
     if (company) {
       setCompanies(prev => prev.map(comp => {
@@ -668,7 +660,6 @@ function App() {
     
     showAlert('TIN registered successfully! Your business is now compliant with Ethiopian trade regulations.', 'success');
     
-    // Reset form
     setTinData({
       tinNumber: '',
       businessName: '',
@@ -684,12 +675,10 @@ function App() {
     });
   };
 
-  // Authentication
   const handleLogin = (e: React.FormEvent): void => {
     e.preventDefault();
     const { loginPassword, selectedUser } = formData;
     
-    // Find user by selected value (email)
     const user = users.find(u => u.email === selectedUser);
     
     if (!user) {
@@ -697,16 +686,13 @@ function App() {
       return;
     }
     
-    // Check if user is locked
     if (isUserLocked(user)) {
       const remainingTime = Math.ceil((user.lockUntil! - Date.now()) / 1000);
       showAlert(`Account is locked. Please try again in ${remainingTime} seconds`, 'danger');
       return;
     }
     
-    // Check password
     if (user.password === loginPassword) {
-      // Successful login - reset attempts
       setUsers(prev => prev.map(u => {
         if (u.id === user.id) {
           return {
@@ -724,12 +710,11 @@ function App() {
       setCurrentPage('home');
       setFormData(prev => ({ ...prev, loginPassword: '', selectedUser: '' }));
     } else {
-      // Failed login - increment attempts
       const newAttempts = (user.loginAttempts || 0) + 1;
       let lockUntil = 0;
       
       if (newAttempts >= 3) {
-        lockUntil = Date.now() + 30000; // 30 seconds lock
+        lockUntil = Date.now() + 30000;
         showAlert('Too many failed attempts. Account locked for 30 seconds.', 'danger');
       } else {
         showAlert(`Incorrect password. ${3 - newAttempts} attempts remaining.`, 'danger');
@@ -820,7 +805,6 @@ function App() {
     setCurrentPage('home');
   };
 
-  // Material Management
   const handleAddMaterial = (e: React.FormEvent): void => {
     e.preventDefault();
     const { 
@@ -871,7 +855,6 @@ function App() {
     showAlert('Material added successfully! Product specifications saved.', 'success');
     setCurrentPage('company-dashboard');
     
-    // Reset form
     setFormData(prev => ({
       ...prev,
       materialName: '',
@@ -896,7 +879,6 @@ function App() {
     showAlert('Material deleted successfully', 'success');
   };
 
-  // Order Management
   const handlePlaceOrder = (materialId: string): void => {
     if (!currentUser || currentUser.userType !== 'customer') {
       showAlert('Only customers can place orders', 'danger');
@@ -974,7 +956,6 @@ function App() {
     showAlert(`Order status updated to ${status}`, 'success');
   };
 
-  // Contact Supplier Function
   const handleContactSupplier = (materialId: string): void => {
     const material = getMaterialById(materialId);
     if (!material) return;
@@ -986,20 +967,8 @@ function App() {
     if (!user) return;
     
     showAlert(`Contacting ${company.name}. Phone: ${user.phone}. Email: ${user.email}`, 'info');
-    
-    // Simulate opening contact dialog
-    const contactMessage = `Hello, I'm interested in ${material.name}. Could you provide more details?`;
-    console.log('Contact message:', contactMessage);
-    console.log('Supplier contact info:', {
-      company: company.name,
-      phone: user.phone,
-      email: user.email,
-      address: company.location,
-      TIN: company.tinNumber
-    });
   };
 
-  // Enhanced Search Functionality
   const handleSearch = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     const { searchQuery, searchCategory, searchMaxPrice, searchSupplier, searchSortBy } = formData;
@@ -1034,7 +1003,6 @@ function App() {
       return matches;
     });
     
-    // Calculate additional data for each result
     results = results.map(material => {
       const company = getCompanyById(material.companyId);
       let estimatedTransport = 0;
@@ -1063,7 +1031,6 @@ function App() {
       };
     });
     
-    // Apply sorting
     results.sort((a, b) => {
       switch (searchSortBy) {
         case 'price_asc':
@@ -1087,15 +1054,12 @@ function App() {
     setSortConfig({ key: searchSortBy.split('_')[0], direction: searchSortBy.includes('asc') ? 'asc' : 'desc' });
   }, [formData, materials, currentUser]);
 
-  // Sort function
   const handleSort = (sortBy: FormData['searchSortBy']) => {
     setFormData(prev => ({ ...prev, searchSortBy: sortBy }));
-    // Trigger search with new sort
     const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
     handleSearch(fakeEvent);
   };
 
-  // Navigation
   const navigateTo = (page: string): void => {
     setCurrentPage(page);
   };
@@ -1104,12 +1068,10 @@ function App() {
     setFormData(prev => ({ ...prev, registerUserType: type }));
   };
 
-  // Handle form input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>): void => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     
-    // If selectedUser changes, check if it's a registered email and show lock status
     if (name === 'selectedUser' && value) {
       const user = users.find(u => u.email === value);
       if (user && isUserLocked(user)) {
@@ -1119,12 +1081,10 @@ function App() {
     }
   };
 
-  // Handle datalist input change
   const handleDatalistInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const value = e.target.value;
     setFormData(prev => ({ ...prev, selectedUser: value }));
     
-    // Check if the entered value matches a user
     const user = users.find(u => u.email === value);
     if (user && isUserLocked(user)) {
       const remainingTime = Math.ceil((user.lockUntil! - Date.now()) / 1000);
@@ -1132,13 +1092,11 @@ function App() {
     }
   };
 
-  // Handle TIN form input changes
   const handleTinInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>): void => {
     const { name, value } = e.target;
     setTinData(prev => ({ ...prev, [name]: value }));
   };
 
-  // Check and reset locked users periodically
   useEffect(() => {
     const interval = setInterval(() => {
       users.forEach(user => {
@@ -1146,12 +1104,11 @@ function App() {
           resetLoginAttempts(user.id);
         }
       });
-    }, 1000); // Check every second
+    }, 1000);
     
     return () => clearInterval(interval);
   }, [users]);
 
-  // Calculate statistics
   const calculateStats = () => {
     const userOrders = currentUser ? orders.filter(o => 
       currentUser.userType === 'company' 
@@ -1166,7 +1123,6 @@ function App() {
     return { totalRevenue, pendingOrders, deliveredOrders, totalOrders: userOrders.length };
   };
 
-  // Render Header
   const renderHeader = () => (
     <header className="header">
       <div className="header-content">
@@ -1269,7 +1225,6 @@ function App() {
     );
   };
 
-  // Render Alert
   const renderAlert = () => {
     if (!alert) return null;
     
@@ -1288,7 +1243,6 @@ function App() {
     );
   };
 
-  // Render Material Specifications
   const renderMaterialSpecs = (material: Material) => {
     const specs = material.specifications;
     return (
@@ -1359,7 +1313,6 @@ function App() {
     );
   };
 
-  // Render Material Details Modal
   const renderMaterialDetails = () => {
     if (!selectedMaterial) return null;
     
@@ -1487,7 +1440,6 @@ function App() {
     );
   };
 
-  // Render Pages
   const renderHome = () => {
     const stats = {
       totalMaterials: materials.length,
@@ -3174,7 +3126,7 @@ function App() {
                         <div className="rating-display">
                           <i className="fas fa-star"></i> {company.rating || '4.5'}/5
                         </div>
-                      </td>
+                      </div>
                       <td>
                         {formatCurrency(estTransport)}
                         {distance > 0 && <br/>}
@@ -3599,6 +3551,24 @@ function App() {
       </div>
     </footer>
   );
+
+  const renderCurrentPage = () => {
+    switch (currentPage) {
+      case 'home': return renderHome();
+      case 'login': return renderLogin();
+      case 'register': return renderRegister();
+      case 'company-dashboard': return renderCompanyDashboard();
+      case 'customer-dashboard': return renderCustomerDashboard();
+      case 'add-material': return renderAddMaterial();
+      case 'search-materials': return renderSearchMaterials();
+      case 'orders': return renderOrders();
+      case 'analytics': return renderAnalytics();
+      case 'supplier-map': return renderSupplierMap();
+      case 'price-forecast': return renderPriceForecast();
+      case 'tin-registration': return renderTinRegistration();
+      default: return renderHome();
+    }
+  };
 
   return (
     <div className="app-container">
