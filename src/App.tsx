@@ -3126,7 +3126,7 @@ function App() {
                         <div className="rating-display">
                           <i className="fas fa-star"></i> {company.rating || '4.5'}/5
                         </div>
-                      </div>
+                      </td>
                       <td>
                         {formatCurrency(estTransport)}
                         {distance > 0 && <br/>}
