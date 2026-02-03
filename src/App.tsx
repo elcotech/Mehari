@@ -256,273 +256,277 @@ function App() {
 
   // Initialize with sample data
   useEffect(() => {
-    if (users.length === 0) {
-      const sampleUsers: User[] = [
-        {
-          id: 'user1',
-          name: 'Mehari Admin',
-          email: 'meharinageb@gmail.com',
-          password: 'password123',
-          userType: 'company',
-          companyName: 'Mehari General Supplies PLC',
-          phone: '+251909919154',
-          address: 'Bole Road, Addis Ababa, Ethiopia',
-          lat: 8.9806,
-          lng: 38.7578,
-          registered: '2023-01-15',
-          loginAttempts: 0,
-          lockUntil: 0,
-          tinNumber: 'ET0001234567',
-          businessLicense: 'BL/ET/2023/001',
-          vatRegistered: true
-        },
-        {
-          id: 'user2',
-          name: 'John Customer',
-          email: 'customer@example.com',
-          password: 'password123',
-          userType: 'customer',
-          companyName: '',
-          phone: '+251 912 345 678',
-          address: 'Megenagna, Addis Ababa, Ethiopia',
-          lat: 9.0227,
-          lng: 38.7468,
-          registered: '2023-02-20',
-          loginAttempts: 0,
-          lockUntil: 0,
-          vatRegistered: false
-        }
-      ];
-      setUsers(sampleUsers);
-      localStorage.setItem('users', JSON.stringify(sampleUsers));
-    }
+    const initializeData = () => {
+      if (users.length === 0) {
+        const sampleUsers: User[] = [
+          {
+            id: 'user1',
+            name: 'Mehari Admin',
+            email: 'meharinageb@gmail.com',
+            password: 'password123',
+            userType: 'company',
+            companyName: 'Mehari General Supplies PLC',
+            phone: '+251909919154',
+            address: 'Bole Road, Addis Ababa, Ethiopia',
+            lat: 8.9806,
+            lng: 38.7578,
+            registered: '2023-01-15',
+            loginAttempts: 0,
+            lockUntil: 0,
+            tinNumber: 'ET0001234567',
+            businessLicense: 'BL/ET/2023/001',
+            vatRegistered: true
+          },
+          {
+            id: 'user2',
+            name: 'John Customer',
+            email: 'customer@example.com',
+            password: 'password123',
+            userType: 'customer',
+            companyName: '',
+            phone: '+251 912 345 678',
+            address: 'Megenagna, Addis Ababa, Ethiopia',
+            lat: 9.0227,
+            lng: 38.7468,
+            registered: '2023-02-20',
+            loginAttempts: 0,
+            lockUntil: 0,
+            vatRegistered: false
+          }
+        ];
+        setUsers(sampleUsers);
+        localStorage.setItem('users', JSON.stringify(sampleUsers));
+      }
 
-    if (companies.length === 0) {
-      const sampleCompanies: Company[] = [
-        {
-          id: 'comp1',
-          userId: 'user1',
-          name: 'Mehari General Supplies PLC',
-          description: 'Premium supplier for various industrial and consumer goods with 20+ years of experience',
-          location: 'Bole Road, Addis Ababa',
-          lat: 8.9806,
-          lng: 38.7578,
-          rating: 4.8,
-          totalOrders: 124,
-          established: '2020',
-          tinNumber: 'ET0001234567',
-          businessLicense: 'BL/ET/2023/001',
-          vatNumber: 'VAT00123456',
-          tradeLicenseExpiry: '2025-12-31',
-          complianceStatus: 'compliant'
-        },
-        {
-          id: 'comp2',
-          userId: 'user3',
-          name: 'Ethio Industrial Supplies PLC',
-          description: 'Industrial materials wholesale with nationwide distribution',
-          location: 'Merkato, Addis Ababa',
-          lat: 9.0300,
-          lng: 38.7500,
-          rating: 4.5,
-          totalOrders: 89,
-          established: '2019',
-          tinNumber: 'ET0002345678',
-          businessLicense: 'BL/ET/2019/045',
-          vatNumber: 'VAT00234567',
-          tradeLicenseExpiry: '2024-12-31',
-          complianceStatus: 'compliant'
-        },
-        {
-          id: 'comp3',
-          userId: 'user4',
-          name: 'Addis Pharmaceuticals & Medical Supplies PLC',
-          description: 'Specialized in medical and pharmaceutical products with FDA approval',
-          location: 'Kaliti, Addis Ababa',
-          lat: 8.8500,
-          lng: 38.7200,
-          rating: 4.7,
-          totalOrders: 156,
-          established: '2018',
-          tinNumber: 'ET0003456789',
-          businessLicense: 'BL/ET/2018/123',
-          vatNumber: 'VAT00345678',
-          tradeLicenseExpiry: '2024-12-31',
-          complianceStatus: 'compliant'
-        }
-      ];
-      setCompanies(sampleCompanies);
-      localStorage.setItem('companies', JSON.stringify(sampleCompanies));
-    }
+      if (companies.length === 0) {
+        const sampleCompanies: Company[] = [
+          {
+            id: 'comp1',
+            userId: 'user1',
+            name: 'Mehari General Supplies PLC',
+            description: 'Premium supplier for various industrial and consumer goods with 20+ years of experience',
+            location: 'Bole Road, Addis Ababa',
+            lat: 8.9806,
+            lng: 38.7578,
+            rating: 4.8,
+            totalOrders: 124,
+            established: '2020',
+            tinNumber: 'ET0001234567',
+            businessLicense: 'BL/ET/2023/001',
+            vatNumber: 'VAT00123456',
+            tradeLicenseExpiry: '2025-12-31',
+            complianceStatus: 'compliant'
+          },
+          {
+            id: 'comp2',
+            userId: 'user3',
+            name: 'Ethio Industrial Supplies PLC',
+            description: 'Industrial materials wholesale with nationwide distribution',
+            location: 'Merkato, Addis Ababa',
+            lat: 9.0300,
+            lng: 38.7500,
+            rating: 4.5,
+            totalOrders: 89,
+            established: '2019',
+            tinNumber: 'ET0002345678',
+            businessLicense: 'BL/ET/2019/045',
+            vatNumber: 'VAT00234567',
+            tradeLicenseExpiry: '2024-12-31',
+            complianceStatus: 'compliant'
+          },
+          {
+            id: 'comp3',
+            userId: 'user4',
+            name: 'Addis Pharmaceuticals & Medical Supplies PLC',
+            description: 'Specialized in medical and pharmaceutical products with FDA approval',
+            location: 'Kaliti, Addis Ababa',
+            lat: 8.8500,
+            lng: 38.7200,
+            rating: 4.7,
+            totalOrders: 156,
+            established: '2018',
+            tinNumber: 'ET0003456789',
+            businessLicense: 'BL/ET/2018/123',
+            vatNumber: 'VAT00345678',
+            tradeLicenseExpiry: '2024-12-31',
+            complianceStatus: 'compliant'
+          }
+        ];
+        setCompanies(sampleCompanies);
+        localStorage.setItem('companies', JSON.stringify(sampleCompanies));
+      }
 
-    if (materials.length === 0) {
-      const sampleMaterials: Material[] = [
-        {
-          id: 'mat1',
-          companyId: 'comp1',
-          name: 'Portland Cement - 42.5 Grade',
-          category: 'Construction',
-          description: 'High quality Portland cement 42.5 Grade for construction. Suitable for structural concrete, plastering, and masonry works.',
-          price: 850,
-          unit: '50kg bag',
-          quantity: 500,
-          minOrder: 10,
-          transportCost: 15,
-          rating: 4.5,
-          brand: 'Dangote',
-          model: 'PC-42.5',
-          specifications: {
-            weight: '50kg',
-            dimensions: 'N/A',
-            materialType: 'Cement',
-            color: 'Gray',
-            grade: '42.5',
-            certification: ['ES (Ethiopian Standard)', 'ISO 9001'],
-            origin: 'Ethiopia',
-            shelfLife: '6 months',
-            packaging: 'PP woven bags',
-            safetyStandards: ['OSHA Compliant', 'Dust Control']
+      if (materials.length === 0) {
+        const sampleMaterials: Material[] = [
+          {
+            id: 'mat1',
+            companyId: 'comp1',
+            name: 'Portland Cement - 42.5 Grade',
+            category: 'Construction',
+            description: 'High quality Portland cement 42.5 Grade for construction. Suitable for structural concrete, plastering, and masonry works.',
+            price: 850,
+            unit: '50kg bag',
+            quantity: 500,
+            minOrder: 10,
+            transportCost: 15,
+            rating: 4.5,
+            brand: 'Dangote',
+            model: 'PC-42.5',
+            specifications: {
+              weight: '50kg',
+              dimensions: 'N/A',
+              materialType: 'Cement',
+              color: 'Gray',
+              grade: '42.5',
+              certification: ['ES (Ethiopian Standard)', 'ISO 9001'],
+              origin: 'Ethiopia',
+              shelfLife: '6 months',
+              packaging: 'PP woven bags',
+              safetyStandards: ['OSHA Compliant', 'Dust Control']
+            },
+            images: ['cement1.jpg', 'cement2.jpg'],
+            taxIncluded: true,
+            vatPercentage: 15,
+            lastUpdated: '2024-01-15'
           },
-          images: ['cement1.jpg', 'cement2.jpg'],
-          taxIncluded: true,
-          vatPercentage: 15,
-          lastUpdated: '2024-01-15'
-        },
-        {
-          id: 'mat2',
-          companyId: 'comp1',
-          name: 'Medical Gloves - Nitrile Powder-Free',
-          category: 'Healthcare',
-          description: 'Disposable latex-free medical gloves, powder-free, ambidextrous. Suitable for medical and laboratory use.',
-          price: 120,
-          unit: 'Box (100 pcs)',
-          quantity: 1000,
-          minOrder: 5,
-          transportCost: 8,
-          rating: 4.7,
-          brand: 'MediSafe',
-          model: 'NG-100',
-          specifications: {
-            weight: '200g per box',
-            dimensions: 'Medium',
-            materialType: 'Nitrile',
-            color: 'Blue',
-            grade: 'Medical Grade',
-            certification: ['FDA Approved', 'CE Mark', 'ISO 13485'],
-            origin: 'China',
-            shelfLife: '5 years',
-            packaging: 'Box of 100',
-            safetyStandards: ['FDA Class I', 'Latex Free']
+          {
+            id: 'mat2',
+            companyId: 'comp1',
+            name: 'Medical Gloves - Nitrile Powder-Free',
+            category: 'Healthcare',
+            description: 'Disposable latex-free medical gloves, powder-free, ambidextrous. Suitable for medical and laboratory use.',
+            price: 120,
+            unit: 'Box (100 pcs)',
+            quantity: 1000,
+            minOrder: 5,
+            transportCost: 8,
+            rating: 4.7,
+            brand: 'MediSafe',
+            model: 'NG-100',
+            specifications: {
+              weight: '200g per box',
+              dimensions: 'Medium',
+              materialType: 'Nitrile',
+              color: 'Blue',
+              grade: 'Medical Grade',
+              certification: ['FDA Approved', 'CE Mark', 'ISO 13485'],
+              origin: 'China',
+              shelfLife: '5 years',
+              packaging: 'Box of 100',
+              safetyStandards: ['FDA Class I', 'Latex Free']
+            },
+            images: ['gloves1.jpg'],
+            taxIncluded: true,
+            vatPercentage: 15,
+            lastUpdated: '2024-01-10'
           },
-          images: ['gloves1.jpg'],
-          taxIncluded: true,
-          vatPercentage: 15,
-          lastUpdated: '2024-01-10'
-        },
-        {
-          id: 'mat3',
-          companyId: 'comp2',
-          name: 'Fertilizer Urea - 46% Nitrogen',
-          category: 'Agriculture',
-          description: 'Agricultural grade urea fertilizer with 46% nitrogen content. Promotes healthy plant growth and high yield.',
-          price: 950,
-          unit: '50kg bag',
-          quantity: 2000,
-          minOrder: 20,
-          transportCost: 12,
-          rating: 4.3,
-          brand: 'AgriMax',
-          model: 'U-46',
-          specifications: {
-            weight: '50kg',
-            dimensions: 'N/A',
-            materialType: 'Chemical Fertilizer',
-            color: 'White',
-            grade: '46% N',
-            certification: ['ES (Ethiopian Standard)', 'ISO 14001'],
-            origin: 'Ethiopia',
-            shelfLife: '2 years',
-            packaging: 'PP woven bags',
-            safetyStandards: ['MSDS Available', 'Proper Storage Required']
+          {
+            id: 'mat3',
+            companyId: 'comp2',
+            name: 'Fertilizer Urea - 46% Nitrogen',
+            category: 'Agriculture',
+            description: 'Agricultural grade urea fertilizer with 46% nitrogen content. Promotes healthy plant growth and high yield.',
+            price: 950,
+            unit: '50kg bag',
+            quantity: 2000,
+            minOrder: 20,
+            transportCost: 12,
+            rating: 4.3,
+            brand: 'AgriMax',
+            model: 'U-46',
+            specifications: {
+              weight: '50kg',
+              dimensions: 'N/A',
+              materialType: 'Chemical Fertilizer',
+              color: 'White',
+              grade: '46% N',
+              certification: ['ES (Ethiopian Standard)', 'ISO 14001'],
+              origin: 'Ethiopia',
+              shelfLife: '2 years',
+              packaging: 'PP woven bags',
+              safetyStandards: ['MSDS Available', 'Proper Storage Required']
+            },
+            taxIncluded: true,
+            vatPercentage: 15,
+            lastUpdated: '2024-01-12'
           },
-          taxIncluded: true,
-          vatPercentage: 15,
-          lastUpdated: '2024-01-12'
-        },
-        {
-          id: 'mat4',
-          companyId: 'comp3',
-          name: 'Desktop Computer - Dell Optiplex 3090',
-          category: 'Information Technology',
-          description: 'Dell Optiplex 3090 desktop computer with Intel Core i5, 8GB RAM, 256GB SSD. Perfect for office and educational use.',
-          price: 25000,
-          unit: 'Piece',
-          quantity: 50,
-          minOrder: 1,
-          transportCost: 200,
-          rating: 4.6,
-          brand: 'Dell',
-          model: 'Optiplex 3090',
-          specifications: {
-            weight: '5.2kg',
-            dimensions: '292 x 92 x 294 mm',
-            materialType: 'Electronic',
-            color: 'Black',
-            grade: 'Commercial Grade',
-            certification: ['ISO 9001', 'Energy Star'],
-            origin: 'China',
-            shelfLife: 'N/A',
-            packaging: 'Original box',
-            safetyStandards: ['FCC', 'CE', 'RoHS']
-          },
-          taxIncluded: true,
-          vatPercentage: 15,
-          lastUpdated: '2024-01-05'
-        }
-      ];
-      setMaterials(sampleMaterials);
-      localStorage.setItem('materials', JSON.stringify(sampleMaterials));
-    }
+          {
+            id: 'mat4',
+            companyId: 'comp3',
+            name: 'Desktop Computer - Dell Optiplex 3090',
+            category: 'Information Technology',
+            description: 'Dell Optiplex 3090 desktop computer with Intel Core i5, 8GB RAM, 256GB SSD. Perfect for office and educational use.',
+            price: 25000,
+            unit: 'Piece',
+            quantity: 50,
+            minOrder: 1,
+            transportCost: 200,
+            rating: 4.6,
+            brand: 'Dell',
+            model: 'Optiplex 3090',
+            specifications: {
+              weight: '5.2kg',
+              dimensions: '292 x 92 x 294 mm',
+              materialType: 'Electronic',
+              color: 'Black',
+              grade: 'Commercial Grade',
+              certification: ['ISO 9001', 'Energy Star'],
+              origin: 'China',
+              shelfLife: 'N/A',
+              packaging: 'Original box',
+              safetyStandards: ['FCC', 'CE', 'RoHS']
+            },
+            taxIncluded: true,
+            vatPercentage: 15,
+            lastUpdated: '2024-01-05'
+          }
+        ];
+        setMaterials(sampleMaterials);
+        localStorage.setItem('materials', JSON.stringify(sampleMaterials));
+      }
 
-    if (orders.length === 0) {
-      const sampleOrders: Order[] = [
-        {
-          id: 'order1',
-          customerId: 'user2',
-          companyId: 'comp1',
-          materialId: 'mat1',
-          quantity: 50,
-          unitPrice: 850,
-          transportCost: 750,
-          totalAmount: 43000,
-          status: 'delivered',
-          orderDate: '2023-10-15',
-          deliveryDate: '2023-10-18',
-          address: 'Megenagna, Addis Ababa',
-          invoiceNumber: 'INV-2023-001',
-          taxAmount: 6450,
-          vatAmount: 967.5,
-          paymentMethod: 'Bank Transfer',
-          paymentStatus: 'paid'
-        }
-      ];
-      setOrders(sampleOrders);
-      localStorage.setItem('orders', JSON.stringify(sampleOrders));
-    }
-    
-    if (tins.length === 0) {
-      const sampleTins = [
-        {
-          id: 'tin1',
-          userId: 'user1',
-          tinNumber: 'ET0001234567',
-          registeredDate: '2020-05-15',
-          businessType: 'General Trading'
-        }
-      ];
-      setTins(sampleTins);
-      localStorage.setItem('tins', JSON.stringify(sampleTins));
-    }
+      if (orders.length === 0) {
+        const sampleOrders: Order[] = [
+          {
+            id: 'order1',
+            customerId: 'user2',
+            companyId: 'comp1',
+            materialId: 'mat1',
+            quantity: 50,
+            unitPrice: 850,
+            transportCost: 750,
+            totalAmount: 43000,
+            status: 'delivered',
+            orderDate: '2023-10-15',
+            deliveryDate: '2023-10-18',
+            address: 'Megenagna, Addis Ababa',
+            invoiceNumber: 'INV-2023-001',
+            taxAmount: 6450,
+            vatAmount: 967.5,
+            paymentMethod: 'Bank Transfer',
+            paymentStatus: 'paid'
+          }
+        ];
+        setOrders(sampleOrders);
+        localStorage.setItem('orders', JSON.stringify(sampleOrders));
+      }
+      
+      if (tins.length === 0) {
+        const sampleTins = [
+          {
+            id: 'tin1',
+            userId: 'user1',
+            tinNumber: 'ET0001234567',
+            registeredDate: '2020-05-15',
+            businessType: 'General Trading'
+          }
+        ];
+        setTins(sampleTins);
+        localStorage.setItem('tins', JSON.stringify(sampleTins));
+      }
+    };
+
+    initializeData();
   }, []);
 
   // Save to localStorage when data changes
@@ -656,6 +660,18 @@ function App() {
         }
         return comp;
       }));
+      
+      // Update user's TIN number
+      setUsers(prev => prev.map(user => {
+        if (user.id === currentUser.id) {
+          return {
+            ...user,
+            tinNumber: tinData.tinNumber,
+            businessLicense: tinData.tradeLicense
+          };
+        }
+        return user;
+      }));
     }
     
     showAlert('TIN registered successfully! Your business is now compliant with Ethiopian trade regulations.', 'success');
@@ -673,6 +689,8 @@ function App() {
       tradeLicense: '',
       licenseExpiry: ''
     });
+    
+    setCurrentPage('company-dashboard');
   };
 
   const handleLogin = (e: React.FormEvent): void => {
@@ -837,13 +855,13 @@ function App() {
       description: materialDescription,
       transportCost: 15,
       rating: 0,
-      brand: materialBrand,
-      model: materialModel,
+      brand: materialBrand || undefined,
+      model: materialModel || undefined,
       specifications: {
-        weight: materialWeight,
-        dimensions: materialDimensions,
-        grade: materialGrade,
-        origin: materialOrigin,
+        weight: materialWeight || undefined,
+        dimensions: materialDimensions || undefined,
+        grade: materialGrade || undefined,
+        origin: materialOrigin || undefined,
         certification: materialCertifications.split(',').map(c => c.trim()).filter(c => c)
       },
       taxIncluded: true,
@@ -1051,7 +1069,7 @@ function App() {
     });
     
     setSearchResults(results);
-    setSortConfig({ key: searchSortBy.split('_')[0], direction: searchSortBy.includes('asc') ? 'asc' : 'desc' });
+    setCurrentPage('search-materials');
   }, [formData, materials, currentUser]);
 
   const handleSort = (sortBy: FormData['searchSortBy']) => {
