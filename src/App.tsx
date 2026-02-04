@@ -11,6 +11,7 @@ interface User {
   companyName?: string;
   phone: string;
   address: string;
+  city: string;
   lat?: number;
   lng?: number;
   registered: string;
@@ -19,6 +20,7 @@ interface User {
   tinNumber?: string;
   businessLicense?: string;
   vatRegistered: boolean;
+  vatNumber?: string;
 }
 
 interface Company {
@@ -27,6 +29,7 @@ interface Company {
   name: string;
   description: string;
   location: string;
+  city: string;
   lat: number;
   lng: number;
   rating: number;
@@ -106,8 +109,13 @@ interface FormData {
   registerPassword: string;
   registerPhone: string;
   registerAddress: string;
+  registerCity: string;
   registerCompanyName: string;
   registerUserType: string;
+  tinNumber: string;
+  businessLicense: string;
+  vatNumber: string;
+  vatRegistered: boolean;
   materialName: string;
   materialCategory: string;
   materialPrice: string;
@@ -119,6 +127,7 @@ interface FormData {
   searchCategory: string;
   searchMaxPrice: string;
   searchSupplier: string;
+  searchCity: string;
   searchSortBy: 'price_asc' | 'price_desc' | 'distance_asc' | 'distance_desc' | 'rating_desc' | 'newest';
   orderQuantity: string;
   orderAddress: string;
@@ -131,11 +140,13 @@ interface FormData {
   materialCertifications: string;
 }
 
-// Ethiopian Regions/States
-const ETHIOPIAN_REGIONS = [
-  'Addis Ababa', 'Afar', 'Amhara', 'Benishangul-Gumuz', 'Dire Dawa', 
-  'Gambela', 'Harari', 'Oromia', 'Somali', 'Southern Nations, Nationalities, and Peoples\' Region', 
-  'Tigray', 'Sidama', 'South West Ethiopia Peoples\' Region'
+// Ethiopian Cities
+const ETHIOPIAN_CITIES = [
+  'Addis Ababa', 'Dire Dawa', 'Mekele', 'Gondar', 'Bahir Dar', 'Hawassa',
+  'Jimma', 'Jinka', 'Arba Minch', 'Adama', 'Asella', 'Debre Markos',
+  'Debre Birhan', 'Dessie', 'Harar', 'Nekemte', 'Shashamane', 'Sodo',
+  'Wolaita Sodo', 'Bishoftu', 'Adigrat', 'Axum', 'Goba', 'Gode', 'Jijiga',
+  'Mizan Teferi', 'Semera', 'Woldia', 'Assosa', 'Gambela'
 ];
 
 // Measurement units
@@ -197,14 +208,10 @@ function App() {
     }
     return [];
   });
-  const [tins, setTins] = useState<Array<{id: string, userId: string, tinNumber: string, registeredDate: string, businessType: string}>>(() => {
-    const savedTins = localStorage.getItem('tins');
-    return savedTins ? JSON.parse(savedTins) : [];
-  });
+  
   const [searchResults, setSearchResults] = useState<Array<Material & {company?: Company, totalCost?: number, estimatedTransport?: number, distance?: number}>>([]);
   const [alert, setAlert] = useState<Alert | null>(null);
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
-  const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'}>({ key: 'totalCost', direction: 'asc' });
   
   const [formData, setFormData] = useState<FormData>({
     loginEmail: '',
@@ -215,8 +222,13 @@ function App() {
     registerPassword: '',
     registerPhone: '',
     registerAddress: '',
+    registerCity: 'Addis Ababa',
     registerCompanyName: '',
     registerUserType: 'customer',
+    tinNumber: '',
+    businessLicense: '',
+    vatNumber: '',
+    vatRegistered: false,
     materialName: '',
     materialCategory: '',
     materialPrice: '',
@@ -228,6 +240,7 @@ function App() {
     searchCategory: 'all',
     searchMaxPrice: '',
     searchSupplier: '',
+    searchCity: 'all',
     searchSortBy: 'price_asc',
     orderQuantity: '',
     orderAddress: '',
@@ -238,20 +251,6 @@ function App() {
     materialGrade: '',
     materialOrigin: 'Ethiopia',
     materialCertifications: '',
-  });
-
-  const [tinData, setTinData] = useState({
-    tinNumber: '',
-    businessName: '',
-    businessType: '',
-    region: '',
-    woreda: '',
-    kebele: '',
-    businessAddress: '',
-    registrationDate: new Date().toISOString().split('T')[0],
-    vatNumber: '',
-    tradeLicense: '',
-    licenseExpiry: ''
   });
 
   // Initialize with sample data
@@ -268,6 +267,7 @@ function App() {
             companyName: 'Mehari General Supplies PLC',
             phone: '+251909919154',
             address: 'Bole Road, Addis Ababa, Ethiopia',
+            city: 'Addis Ababa',
             lat: 8.9806,
             lng: 38.7578,
             registered: '2023-01-15',
@@ -275,7 +275,8 @@ function App() {
             lockUntil: 0,
             tinNumber: 'ET0001234567',
             businessLicense: 'BL/ET/2023/001',
-            vatRegistered: true
+            vatRegistered: true,
+            vatNumber: 'VAT00123456'
           },
           {
             id: 'user2',
@@ -286,6 +287,7 @@ function App() {
             companyName: '',
             phone: '+251 912 345 678',
             address: 'Megenagna, Addis Ababa, Ethiopia',
+            city: 'Addis Ababa',
             lat: 9.0227,
             lng: 38.7468,
             registered: '2023-02-20',
@@ -306,6 +308,7 @@ function App() {
             name: 'Mehari General Supplies PLC',
             description: 'Premium supplier for various industrial and consumer goods with 20+ years of experience',
             location: 'Bole Road, Addis Ababa',
+            city: 'Addis Ababa',
             lat: 8.9806,
             lng: 38.7578,
             rating: 4.8,
@@ -323,6 +326,7 @@ function App() {
             name: 'Ethio Industrial Supplies PLC',
             description: 'Industrial materials wholesale with nationwide distribution',
             location: 'Merkato, Addis Ababa',
+            city: 'Addis Ababa',
             lat: 9.0300,
             lng: 38.7500,
             rating: 4.5,
@@ -337,13 +341,14 @@ function App() {
           {
             id: 'comp3',
             userId: 'user4',
-            name: 'Addis Pharmaceuticals & Medical Supplies PLC',
-            description: 'Specialized in medical and pharmaceutical products with FDA approval',
-            location: 'Kaliti, Addis Ababa',
-            lat: 8.8500,
-            lng: 38.7200,
-            rating: 4.7,
-            totalOrders: 156,
+            name: 'Jimma Agricultural Supplies',
+            description: 'Specialized in agricultural equipment and supplies for Ethiopian farmers',
+            location: 'Jimma Main Road',
+            city: 'Jimma',
+            lat: 7.6667,
+            lng: 36.8333,
+            rating: 4.3,
+            totalOrders: 67,
             established: '2018',
             tinNumber: 'ET0003456789',
             businessLicense: 'BL/ET/2018/123',
@@ -453,28 +458,28 @@ function App() {
           {
             id: 'mat4',
             companyId: 'comp3',
-            name: 'Desktop Computer - Dell Optiplex 3090',
-            category: 'Information Technology',
-            description: 'Dell Optiplex 3090 desktop computer with Intel Core i5, 8GB RAM, 256GB SSD. Perfect for office and educational use.',
-            price: 25000,
+            name: 'Agricultural Plough - Heavy Duty',
+            category: 'Agriculture',
+            description: 'Heavy duty agricultural plough suitable for Ethiopian farmlands. Durable construction with replaceable blades.',
+            price: 4500,
             unit: 'Piece',
             quantity: 50,
             minOrder: 1,
-            transportCost: 200,
-            rating: 4.6,
-            brand: 'Dell',
-            model: 'Optiplex 3090',
+            transportCost: 350,
+            rating: 4.4,
+            brand: 'FarmPro',
+            model: 'HD-PL400',
             specifications: {
-              weight: '5.2kg',
-              dimensions: '292 x 92 x 294 mm',
-              materialType: 'Electronic',
-              color: 'Black',
+              weight: '45kg',
+              dimensions: '150 x 60 x 90 cm',
+              materialType: 'Steel',
+              color: 'Red',
               grade: 'Commercial Grade',
-              certification: ['ISO 9001', 'Energy Star'],
-              origin: 'China',
+              certification: ['ES (Ethiopian Standard)'],
+              origin: 'Ethiopia',
               shelfLife: 'N/A',
-              packaging: 'Original box',
-              safetyStandards: ['FCC', 'CE', 'RoHS']
+              packaging: 'Wooden crate',
+              safetyStandards: ['Safety Lock', 'Durable Construction']
             },
             taxIncluded: true,
             vatPercentage: 15,
@@ -510,20 +515,6 @@ function App() {
         setOrders(sampleOrders);
         localStorage.setItem('orders', JSON.stringify(sampleOrders));
       }
-      
-      if (tins.length === 0) {
-        const sampleTins = [
-          {
-            id: 'tin1',
-            userId: 'user1',
-            tinNumber: 'ET0001234567',
-            registeredDate: '2020-05-15',
-            businessType: 'General Trading'
-          }
-        ];
-        setTins(sampleTins);
-        localStorage.setItem('tins', JSON.stringify(sampleTins));
-      }
     };
 
     initializeData();
@@ -545,10 +536,6 @@ function App() {
   useEffect(() => {
     localStorage.setItem('users', JSON.stringify(users));
   }, [users]);
-  
-  useEffect(() => {
-    localStorage.setItem('tins', JSON.stringify(tins));
-  }, [tins]);
 
   // Utility Functions
   const formatCurrency = (amount: number): string => {
@@ -600,7 +587,6 @@ function App() {
   const getCompanyById = (id: string): Company | undefined => companies.find(c => c.id === id);
   const getUserById = (id: string): User | undefined => users.find(u => u.id === id);
   const getCompanyByUserId = (userId: string): Company | undefined => companies.find(c => c.userId === userId);
-  const getTinByUserId = (userId: string) => tins.find(t => t.userId === userId);
 
   const isUserLocked = (user: User): boolean => {
     if (user.lockUntil && user.lockUntil > Date.now()) {
@@ -620,77 +606,6 @@ function App() {
       }
       return user;
     }));
-  };
-
-  const handleTinRegistration = (e: React.FormEvent): void => {
-    e.preventDefault();
-    
-    if (!currentUser) {
-      showAlert('Please login to register TIN', 'danger');
-      return;
-    }
-    
-    const existingTin = getTinByUserId(currentUser.id);
-    if (existingTin) {
-      showAlert('You already have a registered TIN', 'warning');
-      return;
-    }
-    
-    const newTin = {
-      id: 'tin' + (tins.length + 1),
-      userId: currentUser.id,
-      tinNumber: tinData.tinNumber,
-      registeredDate: tinData.registrationDate,
-      businessType: tinData.businessType
-    };
-    
-    setTins(prev => [...prev, newTin]);
-    
-    const company = getCompanyByUserId(currentUser.id);
-    if (company) {
-      setCompanies(prev => prev.map(comp => {
-        if (comp.id === company.id) {
-          return {
-            ...comp,
-            tinNumber: tinData.tinNumber,
-            vatNumber: tinData.vatNumber,
-            businessLicense: tinData.tradeLicense,
-            tradeLicenseExpiry: tinData.licenseExpiry
-          };
-        }
-        return comp;
-      }));
-      
-      // Update user's TIN number
-      setUsers(prev => prev.map(user => {
-        if (user.id === currentUser.id) {
-          return {
-            ...user,
-            tinNumber: tinData.tinNumber,
-            businessLicense: tinData.tradeLicense
-          };
-        }
-        return user;
-      }));
-    }
-    
-    showAlert('TIN registered successfully! Your business is now compliant with Ethiopian trade regulations.', 'success');
-    
-    setTinData({
-      tinNumber: '',
-      businessName: '',
-      businessType: '',
-      region: '',
-      woreda: '',
-      kebele: '',
-      businessAddress: '',
-      registrationDate: new Date().toISOString().split('T')[0],
-      vatNumber: '',
-      tradeLicense: '',
-      licenseExpiry: ''
-    });
-    
-    setCurrentPage('company-dashboard');
   };
 
   const handleLogin = (e: React.FormEvent): void => {
@@ -755,7 +670,8 @@ function App() {
     e.preventDefault();
     const { 
       registerFullName, registerEmail, registerPassword, registerPhone, 
-      registerAddress, registerCompanyName, registerUserType 
+      registerAddress, registerCity, registerCompanyName, registerUserType,
+      tinNumber, businessLicense, vatNumber, vatRegistered
     } = formData;
     
     const existingUser = users.find(u => u.email === registerEmail);
@@ -771,14 +687,26 @@ function App() {
       password: registerPassword,
       phone: registerPhone,
       address: registerAddress,
+      city: registerCity,
       userType: registerUserType,
       companyName: registerUserType === 'company' ? registerCompanyName : '',
-      lat: 9.0320 + (Math.random() * 0.05 - 0.025),
-      lng: 38.7469 + (Math.random() * 0.05 - 0.025),
+      lat: registerCity === 'Addis Ababa' ? 9.0320 + (Math.random() * 0.05 - 0.025) : 
+           registerCity === 'Jimma' ? 7.6667 + (Math.random() * 0.05 - 0.025) :
+           registerCity === 'Mekele' ? 13.4969 + (Math.random() * 0.05 - 0.025) :
+           registerCity === 'Jinka' ? 5.7864 + (Math.random() * 0.05 - 0.025) :
+           9.0320 + (Math.random() * 0.05 - 0.025),
+      lng: registerCity === 'Addis Ababa' ? 38.7469 + (Math.random() * 0.05 - 0.025) :
+           registerCity === 'Jimma' ? 36.8333 + (Math.random() * 0.05 - 0.025) :
+           registerCity === 'Mekele' ? 39.4763 + (Math.random() * 0.05 - 0.025) :
+           registerCity === 'Jinka' ? 36.5667 + (Math.random() * 0.05 - 0.025) :
+           38.7469 + (Math.random() * 0.05 - 0.025),
       registered: new Date().toISOString().split('T')[0],
       loginAttempts: 0,
       lockUntil: 0,
-      vatRegistered: false
+      tinNumber: registerUserType === 'company' ? tinNumber : '',
+      businessLicense: registerUserType === 'company' ? businessLicense : '',
+      vatRegistered: registerUserType === 'company' ? vatRegistered : false,
+      vatNumber: registerUserType === 'company' ? vatNumber : ''
     };
     
     setUsers(prev => [...prev, newUser]);
@@ -790,15 +718,17 @@ function App() {
         name: registerCompanyName,
         description: '',
         location: registerAddress,
+        city: registerCity,
         lat: newUser.lat || 9.0320,
         lng: newUser.lng || 38.7469,
         rating: 0,
         totalOrders: 0,
         established: new Date().getFullYear().toString(),
-        tinNumber: '',
-        businessLicense: '',
-        tradeLicenseExpiry: '',
-        complianceStatus: 'pending'
+        tinNumber: tinNumber,
+        businessLicense: businessLicense,
+        vatNumber: vatRegistered ? vatNumber : '',
+        tradeLicenseExpiry: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
+        complianceStatus: 'compliant'
       };
       setCompanies(prev => [...prev, newCompany]);
     }
@@ -812,7 +742,12 @@ function App() {
       registerPassword: '',
       registerPhone: '',
       registerAddress: '',
-      registerCompanyName: ''
+      registerCity: 'Addis Ababa',
+      registerCompanyName: '',
+      tinNumber: '',
+      businessLicense: '',
+      vatNumber: '',
+      vatRegistered: false
     }));
   };
 
@@ -898,7 +833,13 @@ function App() {
   };
 
   const handlePlaceOrder = (materialId: string): void => {
-    if (!currentUser || currentUser.userType !== 'customer') {
+    if (!currentUser) {
+      showAlert('Please login to place an order', 'danger');
+      setCurrentPage('login');
+      return;
+    }
+    
+    if (currentUser.userType !== 'customer') {
       showAlert('Only customers can place orders', 'danger');
       return;
     }
@@ -987,9 +928,9 @@ function App() {
     showAlert(`Contacting ${company.name}. Phone: ${user.phone}. Email: ${user.email}`, 'info');
   };
 
-  const handleSearch = useCallback((e: React.FormEvent) => {
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    const { searchQuery, searchCategory, searchMaxPrice, searchSupplier, searchSortBy } = formData;
+    const { searchQuery, searchCategory, searchMaxPrice, searchSupplier, searchCity, searchSortBy } = formData;
     
     let results = materials.filter(material => {
       let matches = true;
@@ -1016,6 +957,11 @@ function App() {
       if (searchSupplier) {
         const company = getCompanyById(material.companyId);
         matches = matches && company?.name.toLowerCase().includes(searchSupplier.toLowerCase());
+      }
+      
+      if (searchCity && searchCity !== 'all') {
+        const company = getCompanyById(material.companyId);
+        matches = matches && company?.city === searchCity;
       }
       
       return matches;
@@ -1070,7 +1016,7 @@ function App() {
     
     setSearchResults(results);
     setCurrentPage('search-materials');
-  }, [formData, materials, currentUser]);
+  };
 
   const handleSort = (sortBy: FormData['searchSortBy']) => {
     setFormData(prev => ({ ...prev, searchSortBy: sortBy }));
@@ -1087,8 +1033,14 @@ function App() {
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>): void => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type } = e.target;
+    
+    if (type === 'checkbox') {
+      const checked = (e.target as HTMLInputElement).checked;
+      setFormData(prev => ({ ...prev, [name]: checked }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
     
     if (name === 'selectedUser' && value) {
       const user = users.find(u => u.email === value);
@@ -1108,11 +1060,6 @@ function App() {
       const remainingTime = Math.ceil((user.lockUntil! - Date.now()) / 1000);
       showAlert(`This account is currently locked. Please try again in ${remainingTime} seconds.`, 'warning', 3000);
     }
-  };
-
-  const handleTinInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>): void => {
-    const { name, value } = e.target;
-    setTinData(prev => ({ ...prev, [name]: value }));
   };
 
   useEffect(() => {
@@ -1166,6 +1113,12 @@ function App() {
       <a href="#" className={`nav-link ${currentPage === 'home' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('home'); }}>
         <i className="fas fa-home"></i> Home
       </a>
+      <a href="#" className={`nav-link ${currentPage === 'search-materials' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('search-materials'); }}>
+        <i className="fas fa-search"></i> Search Products
+      </a>
+      <a href="#" className={`nav-link ${currentPage === 'supplier-map' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('supplier-map'); }}>
+        <i className="fas fa-map-marked-alt"></i> Supplier Map
+      </a>
       <a href="#" className={`nav-link ${currentPage === 'login' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('login'); }}>
         <i className="fas fa-sign-in-alt"></i> Login
       </a>
@@ -1177,12 +1130,15 @@ function App() {
 
   const renderUserNav = () => {
     const isCompany = currentUser?.userType === 'company';
-    const userTin = getTinByUserId(currentUser?.id || '');
     
     return (
       <>
         <a href="#" className={`nav-link ${currentPage === 'home' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('home'); }}>
           <i className="fas fa-home"></i> Home
+        </a>
+        
+        <a href="#" className={`nav-link ${currentPage === 'search-materials' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('search-materials'); }}>
+          <i className="fas fa-search"></i> Search Products
         </a>
         
         {isCompany ? (
@@ -1193,22 +1149,11 @@ function App() {
             <a href="#" className={`nav-link ${currentPage === 'add-material' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('add-material'); }}>
               <i className="fas fa-box"></i> Add Product
             </a>
-            <a href="#" className={`nav-link ${currentPage === 'analytics' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('analytics'); }}>
-              <i className="fas fa-chart-line"></i> Analytics
-            </a>
           </>
         ) : (
-          <>
-            <a href="#" className={`nav-link ${currentPage === 'customer-dashboard' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('customer-dashboard'); }}>
-              <i className="fas fa-tachometer-alt"></i> Dashboard
-            </a>
-            <a href="#" className={`nav-link ${currentPage === 'search-materials' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('search-materials'); }}>
-              <i className="fas fa-search"></i> Search
-            </a>
-            <a href="#" className={`nav-link ${currentPage === 'price-forecast' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('price-forecast'); }}>
-              <i className="fas fa-chart-bar"></i> Price Forecast
-            </a>
-          </>
+          <a href="#" className={`nav-link ${currentPage === 'customer-dashboard' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('customer-dashboard'); }}>
+            <i className="fas fa-tachometer-alt"></i> Dashboard
+          </a>
         )}
         
         <a href="#" className={`nav-link ${currentPage === 'orders' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('orders'); }}>
@@ -1218,12 +1163,6 @@ function App() {
           <i className="fas fa-map-marked-alt"></i> Supplier Map
         </a>
         
-        {isCompany && !userTin && (
-          <a href="#" className={`nav-link ${currentPage === 'tin-registration' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('tin-registration'); }}>
-            <i className="fas fa-file-contract"></i> Register TIN
-          </a>
-        )}
-        
         <div className="user-info">
           <div className="user-avatar">
             {currentUser?.name?.charAt(0).toUpperCase()}
@@ -1232,7 +1171,6 @@ function App() {
             <div className="user-name">{currentUser?.name}</div>
             <div className="user-type">
               {currentUser?.userType === 'company' ? 'Supplier' : 'Customer'}
-              {userTin && <span className="tin-badge">TIN: {userTin.tinNumber}</span>}
             </div>
           </div>
           <button className="btn-logout" onClick={handleLogout}>
@@ -1335,6 +1273,7 @@ function App() {
     if (!selectedMaterial) return null;
     
     const company = getCompanyById(selectedMaterial.companyId);
+    const supplier = company ? getUserById(company.userId) : null;
     
     return (
       <div className="modal-overlay" onClick={() => setSelectedMaterial(null)}>
@@ -1360,7 +1299,7 @@ function App() {
               
               <div className="detail-section">
                 <h3>Supplier Information</h3>
-                {company && (
+                {company && supplier && (
                   <div className="supplier-details">
                     <div className="supplier-header">
                       <h4>{company.name}</h4>
@@ -1372,20 +1311,26 @@ function App() {
                     <div className="supplier-info-grid">
                       <div className="info-item">
                         <i className="fas fa-map-marker-alt"></i>
-                        <span>{company.location}</span>
+                        <span>{company.location}, {company.city}</span>
+                      </div>
+                      <div className="info-item">
+                        <i className="fas fa-phone"></i>
+                        <span>{supplier.phone}</span>
+                      </div>
+                      <div className="info-item">
+                        <i className="fas fa-envelope"></i>
+                        <span>{supplier.email}</span>
                       </div>
                       <div className="info-item">
                         <i className="fas fa-file-contract"></i>
                         <span>TIN: {company.tinNumber}</span>
                       </div>
-                      <div className="info-item">
-                        <i className="fas fa-shield-alt"></i>
-                        <span>License: {company.businessLicense}</span>
-                      </div>
-                      <div className="info-item">
-                        <i className="fas fa-calendar-check"></i>
-                        <span>Established: {company.established}</span>
-                      </div>
+                      {company.vatNumber && (
+                        <div className="info-item">
+                          <i className="fas fa-file-invoice"></i>
+                          <span>VAT: {company.vatNumber}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1442,6 +1387,12 @@ function App() {
                     <button 
                       className="btn btn-primary"
                       onClick={() => {
+                        if (!currentUser) {
+                          showAlert('Please login to place an order', 'danger');
+                          setCurrentPage('login');
+                          setSelectedMaterial(null);
+                          return;
+                        }
                         handlePlaceOrder(selectedMaterial.id);
                         setSelectedMaterial(null);
                       }}
@@ -1470,8 +1421,25 @@ function App() {
       <main className="main-content">
         <section className="home-hero">
           <h1>AI-Driven Supply Chain Platform for Ethiopia</h1>
-          <p>Connecting businesses across all departments and regions in Ethiopia</p>
+          <p>Connecting businesses across all departments and cities in Ethiopia</p>
           <p className="hero-subtitle">Optimizing supply chains across Agriculture, Construction, Healthcare, Manufacturing, and more through AI-powered solutions</p>
+          
+          <div className="search-center">
+            <form onSubmit={(e) => { e.preventDefault(); navigateTo('search-materials'); }}>
+              <div className="search-center-input">
+                <input
+                  type="text"
+                  className="search-input"
+                  placeholder="Search for products, suppliers, or categories..."
+                  value={formData.searchQuery}
+                  onChange={(e) => setFormData(prev => ({ ...prev, searchQuery: e.target.value }))}
+                />
+                <button type="submit" className="search-center-btn">
+                  <i className="fas fa-search"></i>
+                </button>
+              </div>
+            </form>
+          </div>
           
           {currentUser ? (
             <div className="cta-buttons">
@@ -1519,7 +1487,7 @@ function App() {
           </div>
         </div>
         
-        <h2 className="text-center mb-3">Key Features</h2>
+        <h2 className="section-title">Key Features</h2>
         <div className="features-grid">
           <div className="feature-card">
             <div className="feature-icon">
@@ -1534,7 +1502,7 @@ function App() {
               <i className="fas fa-map-marked-alt"></i>
             </div>
             <h3>GIS Supplier Mapping</h3>
-            <p>Interactive map showing supplier locations across all Ethiopian regions with real-time transport cost calculations</p>
+            <p>Interactive map showing supplier locations across all Ethiopian cities with real-time transport cost calculations</p>
           </div>
           
           <div className="feature-card">
@@ -1549,18 +1517,76 @@ function App() {
             <div className="feature-icon">
               <i className="fas fa-file-contract"></i>
             </div>
-            <h3>TIN Registration</h3>
-            <p>Register and manage Taxpayer Identification Numbers for Ethiopian businesses</p>
+            <h3>Business Compliance</h3>
+            <p>Full TIN and VAT registration support for Ethiopian businesses</p>
           </div>
         </div>
         
-        <h2 className="text-center mb-3">Departments Served</h2>
+        <h2 className="section-title">Departments Served</h2>
         <div className="departments-grid">
           {DEPARTMENTS.slice(0, 12).map((dept, index) => (
             <div className="department-badge" key={index}>
               <i className="fas fa-industry"></i> {dept}
             </div>
           ))}
+        </div>
+        
+        <h2 className="section-title">Popular Products</h2>
+        <div className="materials-grid">
+          {materials.slice(0, 4).map((material: Material) => {
+            const company = getCompanyById(material.companyId);
+            return (
+              <div className="material-card" key={material.id} onClick={() => setSelectedMaterial(material)}>
+                <div className="material-header">
+                  <h3 className="material-title">{material.name}</h3>
+                  <span className="material-category">{material.category}</span>
+                  <div className="material-supplier">
+                    <i className="fas fa-building"></i>
+                    <span>{company ? company.name : 'Unknown Supplier'}</span>
+                    <span className="supplier-location">{company?.city}</span>
+                  </div>
+                </div>
+                <div className="material-body">
+                  <p className="material-description">{material.description.substring(0, 100)}...</p>
+                  
+                  <div className="material-specs-preview">
+                    {material.brand && <span><i className="fas fa-tag"></i> {material.brand}</span>}
+                    {material.specifications.grade && <span><i className="fas fa-certificate"></i> {material.specifications.grade}</span>}
+                    {material.specifications.origin && <span><i className="fas fa-globe"></i> {material.specifications.origin}</span>}
+                  </div>
+                  
+                  <div className="material-price">
+                    {formatCurrency(material.price)} / {material.unit}
+                    <div className="vat-info">VAT {material.vatPercentage}% included</div>
+                  </div>
+                  
+                  <div className="material-stats">
+                    <div className="stat-item">
+                      <div className="value">{material.quantity}</div>
+                      <div className="label">In Stock</div>
+                    </div>
+                    <div className="stat-item">
+                      <div className="value">{material.minOrder}+</div>
+                      <div className="label">Min Order</div>
+                    </div>
+                    <div className="stat-item">
+                      <div className="value">{material.rating || '4.5'}/5</div>
+                      <div className="label">Rating</div>
+                    </div>
+                  </div>
+                  
+                  <div className="material-actions">
+                    <button 
+                      className="btn btn-primary" 
+                      onClick={(e) => { e.stopPropagation(); setSelectedMaterial(material); }}
+                    >
+                      <i className="fas fa-eye"></i> View Details
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </main>
     );
@@ -1693,18 +1719,73 @@ function App() {
             
             <form onSubmit={handleRegister}>
               {formData.registerUserType === 'company' && (
-                <div className="form-group">
-                  <label className="form-label">Company Name *</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    name="registerCompanyName"
-                    value={formData.registerCompanyName}
-                    onChange={handleInputChange}
-                    placeholder="Enter company name"
-                    required={formData.registerUserType === 'company'}
-                  />
-                </div>
+                <>
+                  <div className="form-group">
+                    <label className="form-label">Company Name *</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      name="registerCompanyName"
+                      value={formData.registerCompanyName}
+                      onChange={handleInputChange}
+                      placeholder="Enter company name"
+                      required={formData.registerUserType === 'company'}
+                    />
+                  </div>
+                  
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label className="form-label">TIN Number *</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        name="tinNumber"
+                        value={formData.tinNumber}
+                        onChange={handleInputChange}
+                        placeholder="ET0001234567"
+                        required={formData.registerUserType === 'company'}
+                      />
+                    </div>
+                    
+                    <div className="form-group">
+                      <label className="form-label">Business License *</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        name="businessLicense"
+                        value={formData.businessLicense}
+                        onChange={handleInputChange}
+                        placeholder="BL/ET/2023/001"
+                        required={formData.registerUserType === 'company'}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="form-group">
+                    <label className="form-label">
+                      <input 
+                        type="checkbox" 
+                        name="vatRegistered"
+                        checked={formData.vatRegistered}
+                        onChange={handleInputChange}
+                      /> VAT Registered
+                    </label>
+                  </div>
+                  
+                  {formData.vatRegistered && (
+                    <div className="form-group">
+                      <label className="form-label">VAT Number</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        name="vatNumber"
+                        value={formData.vatNumber}
+                        onChange={handleInputChange}
+                        placeholder="VAT00123456"
+                      />
+                    </div>
+                  )}
+                </>
               )}
               
               <div className="form-row">
@@ -1777,6 +1858,22 @@ function App() {
               </div>
               
               <div className="form-group">
+                <label className="form-label">City *</label>
+                <select 
+                  className="form-select" 
+                  name="registerCity"
+                  value={formData.registerCity}
+                  onChange={handleInputChange}
+                  required
+                >
+                  <option value="">Select City</option>
+                  {ETHIOPIAN_CITIES.map(city => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="form-group">
                 <label className="form-label">
                   <input type="checkbox" required /> I agree to Ethiopian Trade Regulations
                 </label>
@@ -1811,7 +1908,6 @@ function App() {
     const company = getCompanyByUserId(currentUser.id);
     const companyMaterials = materials.filter(m => m.companyId === company?.id);
     const companyOrders = orders.filter(o => o.companyId === company?.id);
-    const userTin = getTinByUserId(currentUser.id);
     
     const stats = calculateStats();
     
@@ -1823,10 +1919,22 @@ function App() {
             <h1>Supplier Dashboard</h1>
           </div>
           <p className="dashboard-subtitle">Welcome back, {company?.name}. Manage your products, orders, and analytics.</p>
-          {userTin && (
-            <div className="tin-display">
-              <i className="fas fa-file-contract"></i>
-              <span>TIN: {userTin.tinNumber} | Registered: {formatDate(userTin.registeredDate)}</span>
+          {company && (
+            <div className="company-info">
+              <div className="info-item">
+                <i className="fas fa-map-marker-alt"></i>
+                <span>{company.city}</span>
+              </div>
+              <div className="info-item">
+                <i className="fas fa-file-contract"></i>
+                <span>TIN: {company.tinNumber}</span>
+              </div>
+              {company.vatNumber && (
+                <div className="info-item">
+                  <i className="fas fa-file-invoice"></i>
+                  <span>VAT: {company.vatNumber}</span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1868,16 +1976,6 @@ function App() {
             <p className="stat-label">All time sales</p>
           </div>
         </div>
-        
-        {!userTin && (
-          <div className="alert alert-warning">
-            <i className="fas fa-exclamation-triangle"></i>
-            <strong>Important:</strong> You haven't registered your TIN yet. Ethiopian law requires all businesses to register for TIN.
-            <button className="btn btn-primary btn-sm ml-2" onClick={() => navigateTo('tin-registration')}>
-              <i className="fas fa-file-contract"></i> Register TIN Now
-            </button>
-          </div>
-        )}
         
         <div className="card">
           <div className="card-header">
@@ -2084,7 +2182,7 @@ function App() {
                     <tr key={order.id}>
                       <td>{order.id}</td>
                       <td>{material ? material.name : 'Unknown'}</td>
-                      <td>{company ? company.name : 'Unknown'}<br/><small>TIN: {company?.tinNumber}</small></td>
+                      <td>{company ? company.name : 'Unknown'}<br/><small>{company?.city}</small></td>
                       <td>
                         {formatCurrency(order.totalAmount)}<br/>
                         <small>VAT: {formatCurrency(order.vatAmount)}</small>
@@ -2108,81 +2206,6 @@ function App() {
                 })}
               </tbody>
             </table>
-          </div>
-        </div>
-        
-        <div className="card">
-          <div className="card-header">
-            <h3 className="card-title">Recommended Products</h3>
-          </div>
-          <div className="materials-grid">
-            {materials.slice(0, 4).map((material: Material) => {
-              const company = getCompanyById(material.companyId);
-              return (
-                <div className="material-card" key={material.id}>
-                  <div className="material-header">
-                    <h3 className="material-title">{material.name}</h3>
-                    <span className="material-category">{material.category}</span>
-                    <div className="material-supplier">
-                      <i className="fas fa-building"></i>
-                      <span>{company ? company.name : 'Unknown Supplier'}</span>
-                      <span className="supplier-tin">{company?.tinNumber}</span>
-                    </div>
-                  </div>
-                  <div className="material-body">
-                    <p className="material-description">{material.description.substring(0, 100)}...</p>
-                    
-                    <div className="material-specs-preview">
-                      {material.brand && <span><i className="fas fa-tag"></i> {material.brand}</span>}
-                      {material.specifications.grade && <span><i className="fas fa-certificate"></i> {material.specifications.grade}</span>}
-                      {material.specifications.origin && <span><i className="fas fa-globe"></i> {material.specifications.origin}</span>}
-                    </div>
-                    
-                    <div className="material-price">
-                      {formatCurrency(material.price)} / {material.unit}
-                      <div className="vat-info">VAT {material.vatPercentage}% included</div>
-                    </div>
-                    
-                    <div className="material-stats">
-                      <div className="stat-item">
-                        <div className="value">{material.quantity}</div>
-                        <div className="label">In Stock</div>
-                      </div>
-                      <div className="stat-item">
-                        <div className="value">{material.minOrder}+</div>
-                        <div className="label">Min Order</div>
-                      </div>
-                      <div className="stat-item">
-                        <div className="value">{material.rating || '4.5'}/5</div>
-                        <div className="label">Rating</div>
-                      </div>
-                    </div>
-                    
-                    <div className="material-actions">
-                      <button 
-                        className="btn btn-primary" 
-                        onClick={() => setSelectedMaterial(material)}
-                      >
-                        <i className="fas fa-eye"></i> View Details
-                      </button>
-                      <button 
-                        className="btn btn-secondary" 
-                        onClick={() => {
-                          setFormData(prev => ({ 
-                            ...prev, 
-                            orderQuantity: material.minOrder.toString(),
-                            orderAddress: currentUser.address
-                          }));
-                          handlePlaceOrder(material.id);
-                        }}
-                      >
-                        <i className="fas fa-shopping-cart"></i> Quick Order
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
           </div>
         </div>
       </main>
@@ -2252,7 +2275,7 @@ function App() {
           
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Brand</label>
+              <label className="form-label">Brand (Optional)</label>
               <input 
                 type="text" 
                 className="form-input" 
@@ -2264,7 +2287,7 @@ function App() {
             </div>
             
             <div className="form-group">
-              <label className="form-label">Model</label>
+              <label className="form-label">Model (Optional)</label>
               <input 
                 type="text" 
                 className="form-input" 
@@ -2323,7 +2346,7 @@ function App() {
             </div>
             
             <div className="form-group">
-              <label className="form-label">Grade/Quality</label>
+              <label className="form-label">Grade/Quality (Optional)</label>
               <input 
                 type="text" 
                 className="form-input" 
@@ -2337,7 +2360,7 @@ function App() {
           
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Weight</label>
+              <label className="form-label">Weight (Optional)</label>
               <input 
                 type="text" 
                 className="form-input" 
@@ -2349,7 +2372,7 @@ function App() {
             </div>
             
             <div className="form-group">
-              <label className="form-label">Dimensions</label>
+              <label className="form-label">Dimensions (Optional)</label>
               <input 
                 type="text" 
                 className="form-input" 
@@ -2363,7 +2386,7 @@ function App() {
           
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Country of Origin</label>
+              <label className="form-label">Country of Origin (Optional)</label>
               <input 
                 type="text" 
                 className="form-input" 
@@ -2375,7 +2398,7 @@ function App() {
             </div>
             
             <div className="form-group">
-              <label className="form-label">Certifications</label>
+              <label className="form-label">Certifications (Optional)</label>
               <input 
                 type="text" 
                 className="form-input" 
@@ -2429,282 +2452,256 @@ function App() {
     
     return (
       <main className="main-content">
-        <div className="dashboard-header">
-          <div className="dashboard-title">
-            <i className="fas fa-search"></i>
-            <h1>Advanced Product Search</h1>
-          </div>
-          <p className="dashboard-subtitle">Search, filter, and sort products across all departments with detailed specifications</p>
-        </div>
-        
-        <div className="search-container">
-          <form onSubmit={handleSearch}>
-            <div className="search-form enhanced">
-              <div className="form-group">
-                <label className="form-label">Search Products</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  name="searchQuery"
-                  value={formData.searchQuery}
-                  onChange={handleInputChange}
-                  placeholder="Product name, brand, model, description..."
-                />
+        <div className="search-hero">
+          <h1>Find Products Across Ethiopia</h1>
+          <p>Search, filter, and compare products from suppliers in all Ethiopian cities</p>
+          
+          <form onSubmit={handleSearch} className="search-center-form">
+            <div className="search-center-input large">
+              <input
+                type="text"
+                className="search-input"
+                name="searchQuery"
+                value={formData.searchQuery}
+                onChange={handleInputChange}
+                placeholder="Search for products, brands, suppliers, or categories..."
+              />
+              <button type="submit" className="search-center-btn">
+                <i className="fas fa-search"></i> Search
+              </button>
+            </div>
+            
+            <div className="search-filters">
+              <div className="filter-row">
+                <div className="filter-group">
+                  <label>Department</label>
+                  <select 
+                    className="filter-select" 
+                    name="searchCategory"
+                    value={formData.searchCategory}
+                    onChange={handleInputChange}
+                  >
+                    <option value="all">All Departments</option>
+                    {DEPARTMENTS.map(dept => (
+                      <option key={dept} value={dept}>{dept}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="filter-group">
+                  <label>City</label>
+                  <select 
+                    className="filter-select" 
+                    name="searchCity"
+                    value={formData.searchCity}
+                    onChange={handleInputChange}
+                  >
+                    <option value="all">All Cities</option>
+                    {ETHIOPIAN_CITIES.map(city => (
+                      <option key={city} value={city}>{city}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="filter-group">
+                  <label>Max Price (ETB)</label>
+                  <input 
+                    type="number" 
+                    className="filter-input" 
+                    name="searchMaxPrice"
+                    value={formData.searchMaxPrice}
+                    onChange={handleInputChange}
+                    placeholder="No limit"
+                  />
+                </div>
+                
+                <div className="filter-group">
+                  <label>Sort By</label>
+                  <select 
+                    className="filter-select" 
+                    name="searchSortBy"
+                    value={formData.searchSortBy}
+                    onChange={handleInputChange}
+                  >
+                    <option value="price_asc">Price: Low to High</option>
+                    <option value="price_desc">Price: High to Low</option>
+                    <option value="rating_desc">Highest Rated</option>
+                    <option value="newest">Newest First</option>
+                  </select>
+                </div>
               </div>
               
-              <div className="form-group">
-                <label className="form-label">Supplier</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  name="searchSupplier"
-                  value={formData.searchSupplier}
-                  onChange={handleInputChange}
-                  placeholder="Supplier name"
-                />
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">Department</label>
-                <select 
-                  className="form-select" 
-                  name="searchCategory"
-                  value={formData.searchCategory}
-                  onChange={handleInputChange}
+              <div className="filter-actions">
+                <button type="submit" className="btn btn-primary">
+                  <i className="fas fa-filter"></i> Apply Filters
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setSearchResults([]);
+                    setFormData(prev => ({ 
+                      ...prev, 
+                      searchQuery: '', 
+                      searchSupplier: '', 
+                      searchMaxPrice: '',
+                      searchCategory: 'all',
+                      searchCity: 'all'
+                    }));
+                  }}
                 >
-                  <option value="all">All Departments</option>
-                  {DEPARTMENTS.map(dept => (
-                    <option key={dept} value={dept}>{dept}</option>
-                  ))}
-                </select>
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">Max Price (ETB)</label>
-                <input 
-                  type="number" 
-                  className="form-input" 
-                  name="searchMaxPrice"
-                  value={formData.searchMaxPrice}
-                  onChange={handleInputChange}
-                  placeholder="No limit"
-                />
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">Sort By</label>
-                <select 
-                  className="form-select" 
-                  name="searchSortBy"
-                  value={formData.searchSortBy}
-                  onChange={handleInputChange}
-                >
-                  <option value="price_asc">Price: Low to High</option>
-                  <option value="price_desc">Price: High to Low</option>
-                  <option value="distance_asc">Distance: Nearest</option>
-                  <option value="distance_desc">Distance: Farthest</option>
-                  <option value="rating_desc">Highest Rated</option>
-                  <option value="newest">Newest First</option>
-                </select>
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">&nbsp;</label>
-                <button type="submit" className="btn-submit">
-                  <i className="fas fa-search"></i> Search
+                  Clear Filters
                 </button>
               </div>
             </div>
           </form>
-          
-          <div className="sort-options">
-            <span className="sort-label">Quick Sort:</span>
-            <button 
-              className={`sort-btn ${formData.searchSortBy === 'price_asc' ? 'active' : ''}`}
-              onClick={() => handleSort('price_asc')}
-            >
-              <i className="fas fa-sort-amount-down"></i> Price (Low to High)
-            </button>
-            <button 
-              className={`sort-btn ${formData.searchSortBy === 'price_desc' ? 'active' : ''}`}
-              onClick={() => handleSort('price_desc')}
-            >
-              <i className="fas fa-sort-amount-up"></i> Price (High to Low)
-            </button>
-            <button 
-              className={`sort-btn ${formData.searchSortBy === 'distance_asc' ? 'active' : ''}`}
-              onClick={() => handleSort('distance_asc')}
-            >
-              <i className="fas fa-map-marker-alt"></i> Nearest
-            </button>
-            <button 
-              className={`sort-btn ${formData.searchSortBy === 'rating_desc' ? 'active' : ''}`}
-              onClick={() => handleSort('rating_desc')}
-            >
-              <i className="fas fa-star"></i> Top Rated
-            </button>
-          </div>
         </div>
         
-        <div className="card">
-          <div className="card-header">
-            <h3 className="card-title">
+        <div className="search-results">
+          <div className="results-header">
+            <h2>
               {hasSearchResults ? `Search Results (${displayMaterials.length} found)` : 'Available Products'}
-              <span className="sort-indicator">
-                Sorted by: {formData.searchSortBy.replace('_', ' ').toUpperCase()}
-              </span>
-            </h3>
-            <div className="result-stats">
+            </h2>
+            <div className="results-stats">
               <span className="stat-item">
                 <i className="fas fa-filter"></i> {displayMaterials.length} Products
               </span>
-              {hasSearchResults && (
-                <button 
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => {
-                    setSearchResults([]);
-                    setFormData(prev => ({ ...prev, searchQuery: '', searchSupplier: '', searchMaxPrice: '' }));
-                  }}
-                >
-                  Clear Search
-                </button>
-              )}
+              <span className="stat-item">
+                <i className="fas fa-map-marker-alt"></i> {Array.from(new Set(displayMaterials.map(m => getCompanyById(m.companyId)?.city).filter(Boolean))).length} Cities
+              </span>
             </div>
           </div>
           
-          <div className="materials-grid enhanced">
-            {displayMaterials.map(item => {
-              const company = item.company || getCompanyById(item.companyId);
-              const estimatedTransport = item.estimatedTransport || 
-                (company && currentUser ? calculateTransportCost(
-                  company.lat, company.lng,
-                  currentUser.lat || 9.0320, currentUser.lng || 38.7469,
-                  item.minOrder
-                ) : 0);
-              
-              const distance = item.distance || 
-                (company && currentUser ? calculateDistance(
-                  company.lat, company.lng,
-                  currentUser.lat || 9.0320, currentUser.lng || 38.7469
-                ) : 0);
-              
-              return (
-                <div className="material-card enhanced" key={item.id}>
-                  <div className="material-header">
-                    <div className="material-title-section">
-                      <h3 className="material-title">{item.name}</h3>
-                      <div className="material-meta">
-                        <span className="material-category">{item.category}</span>
-                        {item.brand && <span className="material-brand">{item.brand}</span>}
+          {displayMaterials.length === 0 ? (
+            <div className="no-results">
+              <i className="fas fa-search"></i>
+              <h3>No products found</h3>
+              <p>Try adjusting your search criteria or browse all products</p>
+              <button 
+                className="btn btn-primary"
+                onClick={() => {
+                  setSearchResults([]);
+                  setFormData(prev => ({ 
+                    ...prev, 
+                    searchQuery: '', 
+                    searchSupplier: '', 
+                    searchMaxPrice: '',
+                    searchCategory: 'all',
+                    searchCity: 'all'
+                  }));
+                }}
+              >
+                Show All Products
+              </button>
+            </div>
+          ) : (
+            <div className="materials-grid enhanced">
+              {displayMaterials.map(item => {
+                const company = getCompanyById(item.companyId);
+                const supplier = company ? getUserById(company.userId) : null;
+                
+                return (
+                  <div className="material-card enhanced" key={item.id}>
+                    <div className="material-header">
+                      <div className="material-title-section">
+                        <h3 className="material-title">{item.name}</h3>
+                        <div className="material-meta">
+                          <span className="material-category">{item.category}</span>
+                          {item.brand && <span className="material-brand">{item.brand}</span>}
+                        </div>
+                      </div>
+                      <div className="material-supplier">
+                        <i className="fas fa-building"></i>
+                        <div className="supplier-info">
+                          <span className="supplier-name">{company ? company.name : 'Unknown Supplier'}</span>
+                          <span className="supplier-location">
+                            <i className="fas fa-map-marker-alt"></i> {company?.city}
+                          </span>
+                          {company?.tinNumber && (
+                            <span className="supplier-tin">
+                              <i className="fas fa-file-contract"></i> TIN: {company.tinNumber}
+                            </span>
+                          )}
+                        </div>
+                        <span className="supplier-rating">
+                          <i className="fas fa-star"></i> {company ? company.rating : 'N/A'}/5
+                        </span>
                       </div>
                     </div>
-                    <div className="material-supplier">
-                      <i className="fas fa-building"></i>
-                      <div className="supplier-info">
-                        <span className="supplier-name">{company ? company.name : 'Unknown Supplier'}</span>
-                        <span className="supplier-location">
-                          <i className="fas fa-map-marker-alt"></i> {company?.location}
-                          {distance > 0 && ` (${distance.toFixed(1)} km)`}
-                        </span>
-                        {company?.tinNumber && (
-                          <span className="supplier-tin">
-                            <i className="fas fa-file-contract"></i> TIN: {company.tinNumber}
-                          </span>
+                    
+                    <div className="material-body">
+                      <p className="material-description">{item.description}</p>
+                      
+                      <div className="material-specs">
+                        {item.brand && (
+                          <div className="spec-item">
+                            <i className="fas fa-tag"></i>
+                            <span>Brand: {item.brand}</span>
+                          </div>
+                        )}
+                        {item.model && (
+                          <div className="spec-item">
+                            <i className="fas fa-cube"></i>
+                            <span>Model: {item.model}</span>
+                          </div>
+                        )}
+                        {item.specifications.grade && (
+                          <div className="spec-item">
+                            <i className="fas fa-certificate"></i>
+                            <span>Grade: {item.specifications.grade}</span>
+                          </div>
+                        )}
+                        {item.specifications.weight && (
+                          <div className="spec-item">
+                            <i className="fas fa-weight"></i>
+                            <span>Weight: {item.specifications.weight}</span>
+                          </div>
                         )}
                       </div>
-                      <span className="supplier-rating">
-                        <i className="fas fa-star"></i> {company ? company.rating : 'N/A'}/5
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div className="material-body">
-                    <p className="material-description">{item.description}</p>
-                    
-                    <div className="material-specs">
-                      {item.brand && (
-                        <div className="spec-item">
-                          <i className="fas fa-tag"></i>
-                          <span>Brand: {item.brand}</span>
+                      
+                      <div className="material-price-section">
+                        <div className="main-price">
+                          <div className="price-amount">{formatCurrency(item.price)}</div>
+                          <div className="price-unit">per {item.unit}</div>
                         </div>
-                      )}
-                      {item.model && (
-                        <div className="spec-item">
-                          <i className="fas fa-cube"></i>
-                          <span>Model: {item.model}</span>
-                        </div>
-                      )}
-                      {item.specifications.grade && (
-                        <div className="spec-item">
-                          <i className="fas fa-certificate"></i>
-                          <span>Grade: {item.specifications.grade}</span>
-                        </div>
-                      )}
-                      {item.specifications.weight && (
-                        <div className="spec-item">
-                          <i className="fas fa-weight"></i>
-                          <span>Weight: {item.specifications.weight}</span>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="material-price-section">
-                      <div className="main-price">
-                        <div className="price-amount">{formatCurrency(item.price)}</div>
-                        <div className="price-unit">per {item.unit}</div>
-                      </div>
-                      <div className="price-details">
-                        <div className="detail-item">
-                          <span className="label">Min Order:</span>
-                          <span className="value">{item.minOrder} {item.unit}</span>
-                        </div>
-                        <div className="detail-item">
-                          <span className="label">Available:</span>
-                          <span className="value">{item.quantity} {item.unit}</span>
-                        </div>
-                        <div className="detail-item">
-                          <span className="label">Est. Transport:</span>
-                          <span className="value">{formatCurrency(estimatedTransport)}</span>
-                        </div>
-                        <div className="detail-item">
-                          <span className="label">VAT:</span>
-                          <span className="value">{item.vatPercentage}% included</span>
+                        <div className="price-details">
+                          <div className="detail-item">
+                            <span className="label">Min Order:</span>
+                            <span className="value">{item.minOrder} {item.unit}</span>
+                          </div>
+                          <div className="detail-item">
+                            <span className="label">Available:</span>
+                            <span className="value">{item.quantity} {item.unit}</span>
+                          </div>
+                          <div className="detail-item">
+                            <span className="label">VAT:</span>
+                            <span className="value">{item.vatPercentage}% included</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    
-                    <div className="material-actions">
-                      <button 
-                        className="btn btn-primary" 
-                        onClick={() => setSelectedMaterial(item)}
-                      >
-                        <i className="fas fa-eye"></i> View Full Specifications
-                      </button>
-                      <button 
-                        className="btn btn-secondary"
-                        onClick={() => {
-                          setFormData(prev => ({ 
-                            ...prev, 
-                            orderQuantity: item.minOrder.toString(),
-                            orderAddress: currentUser?.address || ''
-                          }));
-                          handlePlaceOrder(item.id);
-                        }}
-                      >
-                        <i className="fas fa-shopping-cart"></i> Order Now
-                      </button>
-                      <button 
-                        className="btn btn-outline"
-                        onClick={() => handleContactSupplier(item.id)}
-                      >
-                        <i className="fas fa-phone-alt"></i> Contact Supplier
-                      </button>
+                      
+                      <div className="material-actions">
+                        <button 
+                          className="btn btn-primary" 
+                          onClick={() => setSelectedMaterial(item)}
+                        >
+                          <i className="fas fa-eye"></i> View Details
+                        </button>
+                        {supplier && (
+                          <button 
+                            className="btn btn-outline"
+                            onClick={() => handleContactSupplier(item.id)}
+                          >
+                            <i className="fas fa-phone-alt"></i> Contact Supplier
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </main>
     );
@@ -2749,314 +2746,160 @@ function App() {
           </div>
         </div>
         
-        <div className="table-responsive">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Order ID</th>
-                <th>{isCompany ? 'Customer' : 'Supplier'}</th>
-                <th>Product</th>
-                <th>Quantity</th>
-                <th>Amount</th>
-                <th>Tax Details</th>
-                <th>Status</th>
-                <th>Date</th>
-                {isCompany ? <th>Actions</th> : <th>Invoice</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {userOrders.map((order: Order) => {
-                const material = getMaterialById(order.materialId);
-                const company = getCompanyById(order.companyId);
-                const customer = getUserById(order.customerId);
-                
-                return (
-                  <tr key={order.id}>
-                    <td>
-                      <strong>{order.id}</strong><br/>
-                      <small className="invoice-number">{order.invoiceNumber}</small>
-                    </td>
-                    <td>
-                      {isCompany 
-                        ? (customer ? customer.name : 'Unknown') 
-                        : (company ? `${company.name}` : 'Unknown')}
-                      <br/>
-                      <small>{isCompany ? customer?.phone : company?.tinNumber}</small>
-                    </td>
-                    <td>
-                      {material ? material.name : 'Unknown'}<br/>
-                      <small>{material?.brand} | {material?.model}</small>
-                    </td>
-                    <td>{order.quantity} {material ? material.unit : ''}</td>
-                    <td>
-                      <div className="amount-details">
-                        <div className="total">{formatCurrency(order.totalAmount)}</div>
-                        <div className="breakdown">
-                          <small>Product: {formatCurrency(order.unitPrice * order.quantity)}</small><br/>
-                          <small>Transport: {formatCurrency(order.transportCost)}</small><br/>
-                          <small>VAT: {formatCurrency(order.vatAmount)}</small>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="tax-info">
-                        <span className="tax-badge">VAT: {formatCurrency(order.vatAmount)}</span><br/>
-                        <small>Rate: 15%</small>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="status-cell">
-                        {order.status === 'delivered' ? (
-                          <>
-                            <span className="badge badge-success">Delivered</span>
-                            <small>{order.deliveryDate && formatDate(order.deliveryDate)}</small>
-                          </>
-                        ) : order.status === 'in_transit' ? (
-                          <>
-                            <span className="badge badge-warning">In Transit</span>
-                            <small>Est. delivery soon</small>
-                          </>
-                        ) : order.status === 'pending' ? (
-                          <>
-                            <span className="badge badge-primary">Pending</span>
-                            <small>Awaiting confirmation</small>
-                          </>
-                        ) : (
-                          <>
-                            <span className="badge badge-danger">Cancelled</span>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                    <td>{formatDate(order.orderDate)}</td>
-                    <td>
-                      {isCompany ? (
-                        <div className="table-actions">
-                          {order.status === 'pending' && (
-                            <>
-                              <button className="btn-action btn-success" onClick={() => handleUpdateOrderStatus(order.id, 'confirmed')}>
-                                <i className="fas fa-check"></i> Confirm
-                              </button>
-                              <button className="btn-action btn-danger" onClick={() => handleUpdateOrderStatus(order.id, 'cancelled')}>
-                                <i className="fas fa-times"></i> Cancel
-                              </button>
-                            </>
-                          )}
-                          {order.status === 'confirmed' && (
-                            <button className="btn-action btn-warning" onClick={() => handleUpdateOrderStatus(order.id, 'in_transit')}>
-                              <i className="fas fa-truck"></i> Ship
-                            </button>
-                          )}
-                          {order.status === 'in_transit' && (
-                            <button className="btn-action btn-success" onClick={() => handleUpdateOrderStatus(order.id, 'delivered')}>
-                              <i className="fas fa-check-circle"></i> Deliver
-                            </button>
-                          )}
-                        </div>
-                      ) : (
-                        <button className="btn-action btn-view">
-                          <i className="fas fa-file-invoice"></i> Invoice
-                        </button>
-                      )}
-                    </td>
+        {userOrders.length === 0 ? (
+          <div className="no-orders">
+            <i className="fas fa-shopping-cart"></i>
+            <h3>No orders yet</h3>
+            <p>{isCompany ? 'Your customers haven\'t placed any orders yet.' : 'You haven\'t placed any orders yet.'}</p>
+            {!isCompany && (
+              <button className="btn btn-primary" onClick={() => navigateTo('search-materials')}>
+                <i className="fas fa-search"></i> Browse Products
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            <div className="table-responsive">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Order ID</th>
+                    <th>{isCompany ? 'Customer' : 'Supplier'}</th>
+                    <th>Product</th>
+                    <th>Quantity</th>
+                    <th>Amount</th>
+                    <th>Tax Details</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    {isCompany ? <th>Actions</th> : <th>Invoice</th>}
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        
-        {userOrders.length > 0 && (
-          <div className="card">
-            <div className="card-header">
-              <h3 className="card-title">Order Summary</h3>
+                </thead>
+                <tbody>
+                  {userOrders.map((order: Order) => {
+                    const material = getMaterialById(order.materialId);
+                    const company = getCompanyById(order.companyId);
+                    const customer = getUserById(order.customerId);
+                    
+                    return (
+                      <tr key={order.id}>
+                        <td>
+                          <strong>{order.id}</strong><br/>
+                          <small className="invoice-number">{order.invoiceNumber}</small>
+                        </td>
+                        <td>
+                          {isCompany 
+                            ? (customer ? customer.name : 'Unknown') 
+                            : (company ? `${company.name}` : 'Unknown')}
+                          <br/>
+                          <small>{isCompany ? customer?.phone : company?.city}</small>
+                        </td>
+                        <td>
+                          {material ? material.name : 'Unknown'}<br/>
+                          <small>{material?.brand} | {material?.model}</small>
+                        </td>
+                        <td>{order.quantity} {material ? material.unit : ''}</td>
+                        <td>
+                          <div className="amount-details">
+                            <div className="total">{formatCurrency(order.totalAmount)}</div>
+                            <div className="breakdown">
+                              <small>Product: {formatCurrency(order.unitPrice * order.quantity)}</small><br/>
+                              <small>Transport: {formatCurrency(order.transportCost)}</small><br/>
+                              <small>VAT: {formatCurrency(order.vatAmount)}</small>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="tax-info">
+                            <span className="tax-badge">VAT: {formatCurrency(order.vatAmount)}</span><br/>
+                            <small>Rate: 15%</small>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="status-cell">
+                            {order.status === 'delivered' ? (
+                              <>
+                                <span className="badge badge-success">Delivered</span>
+                                <small>{order.deliveryDate && formatDate(order.deliveryDate)}</small>
+                              </>
+                            ) : order.status === 'in_transit' ? (
+                              <>
+                                <span className="badge badge-warning">In Transit</span>
+                                <small>Est. delivery soon</small>
+                              </>
+                            ) : order.status === 'pending' ? (
+                              <>
+                                <span className="badge badge-primary">Pending</span>
+                                <small>Awaiting confirmation</small>
+                              </>
+                            ) : (
+                              <>
+                                <span className="badge badge-danger">Cancelled</span>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                        <td>{formatDate(order.orderDate)}</td>
+                        <td>
+                          {isCompany ? (
+                            <div className="table-actions">
+                              {order.status === 'pending' && (
+                                <>
+                                  <button className="btn-action btn-success" onClick={() => handleUpdateOrderStatus(order.id, 'confirmed')}>
+                                    <i className="fas fa-check"></i> Confirm
+                                  </button>
+                                  <button className="btn-action btn-danger" onClick={() => handleUpdateOrderStatus(order.id, 'cancelled')}>
+                                    <i className="fas fa-times"></i> Cancel
+                                  </button>
+                                </>
+                              )}
+                              {order.status === 'confirmed' && (
+                                <button className="btn-action btn-warning" onClick={() => handleUpdateOrderStatus(order.id, 'in_transit')}>
+                                  <i className="fas fa-truck"></i> Ship
+                                </button>
+                              )}
+                              {order.status === 'in_transit' && (
+                                <button className="btn-action btn-success" onClick={() => handleUpdateOrderStatus(order.id, 'delivered')}>
+                                  <i className="fas fa-check-circle"></i> Deliver
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <button className="btn-action btn-view">
+                              <i className="fas fa-file-invoice"></i> Invoice
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-            <div className="order-total-summary">
-              <div className="total-item">
-                <span>Subtotal (Products):</span>
-                <span>{formatCurrency(userOrders.reduce((sum, o) => sum + (o.unitPrice * o.quantity), 0))}</span>
+            
+            <div className="card">
+              <div className="card-header">
+                <h3 className="card-title">Order Summary</h3>
               </div>
-              <div className="total-item">
-                <span>Transport Total:</span>
-                <span>{formatCurrency(userOrders.reduce((sum, o) => sum + o.transportCost, 0))}</span>
-              </div>
-              <div className="total-item">
-                <span>VAT Total (15%):</span>
-                <span>{formatCurrency(totalTax)}</span>
-              </div>
-              <div className="total-item grand-total">
-                <span>Grand Total:</span>
-                <span>{formatCurrency(totalValue)}</span>
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
-    );
-  };
-
-  const renderAnalytics = () => {
-    const company = currentUser ? getCompanyByUserId(currentUser.id) : null;
-    const companyMaterials = company ? materials.filter(m => m.companyId === company.id) : [];
-    const companyOrders = company ? orders.filter(o => o.companyId === company.id) : [];
-    
-    const monthlyRevenue = companyOrders.reduce((acc, order) => {
-      const month = new Date(order.orderDate).getMonth();
-      acc[month] = (acc[month] || 0) + order.totalAmount;
-      return acc;
-    }, {} as Record<number, number>);
-    
-    return (
-      <main className="main-content">
-        <div className="dashboard-header">
-          <div className="dashboard-title">
-            <i className="fas fa-chart-line"></i>
-            <h1>Analytics Dashboard</h1>
-          </div>
-          <p className="dashboard-subtitle">AI-powered insights and market trends for Ethiopian businesses</p>
-        </div>
-        
-        <div className="dashboard-grid">
-          <div className="dashboard-card">
-            <div className="card-header">
-              <h3 className="card-title">Price Trends</h3>
-              <div className="card-icon"><i className="fas fa-chart-bar"></i></div>
-            </div>
-            <div className="stat-value">+5.2%</div>
-            <p className="stat-label">Overall price increase this month</p>
-          </div>
-          
-          <div className="dashboard-card">
-            <div className="card-header">
-              <h3 className="card-title">Monthly Revenue</h3>
-              <div className="card-icon"><i className="fas fa-money-bill-wave"></i></div>
-            </div>
-            <div className="stat-value">{formatCurrency(Object.values(monthlyRevenue).reduce((a, b) => a + b, 0))}</div>
-            <p className="stat-label">This month</p>
-          </div>
-          
-          <div className="dashboard-card">
-            <div className="card-header">
-              <h3 className="card-title">Top Department</h3>
-              <div className="card-icon"><i className="fas fa-star"></i></div>
-            </div>
-            <div className="stat-value">Construction</div>
-            <p className="stat-label">Most active department</p>
-          </div>
-          
-          <div className="dashboard-card">
-            <div className="card-header">
-              <h3 className="card-title">Revenue Forecast</h3>
-              <div className="card-icon"><i className="fas fa-chart-line"></i></div>
-            </div>
-            <div className="stat-value">+12.5%</div>
-            <p className="stat-label">Next quarter growth</p>
-          </div>
-        </div>
-        
-        <div className="card">
-          <div className="card-header">
-            <h3 className="card-title">AI Price Forecast</h3>
-            <div className="badge badge-primary">Next 30 Days</div>
-          </div>
-          <div className="p-2">
-            <div className="forecast-chart-placeholder">
-              <i className="fas fa-chart-line"></i>
-              <p>Price forecasting chart would be displayed here</p>
-            </div>
-            <div className="forecast-details">
-              <div className="forecast-item positive">
-                <i className="fas fa-arrow-up"></i>
-                <div>
-                  <strong>Construction Materials:</strong> Expected increase of 5-8%
+              <div className="order-total-summary">
+                <div className="total-item">
+                  <span>Subtotal (Products):</span>
+                  <span>{formatCurrency(userOrders.reduce((sum, o) => sum + (o.unitPrice * o.quantity), 0))}</span>
+                </div>
+                <div className="total-item">
+                  <span>Transport Total:</span>
+                  <span>{formatCurrency(userOrders.reduce((sum, o) => sum + o.transportCost, 0))}</span>
+                </div>
+                <div className="total-item">
+                  <span>VAT Total (15%):</span>
+                  <span>{formatCurrency(totalTax)}</span>
+                </div>
+                <div className="total-item grand-total">
+                  <span>Grand Total:</span>
+                  <span>{formatCurrency(totalValue)}</span>
                 </div>
               </div>
-              <div className="forecast-item stable">
-                <i className="fas fa-minus"></i>
-                <div>
-                  <strong>Agricultural Supplies:</strong> Prices stabilizing
-                </div>
-              </div>
-              <div className="forecast-item positive">
-                <i className="fas fa-arrow-up"></i>
-                <div>
-                  <strong>Medical Supplies:</strong> Steady 3-5% growth expected
-                </div>
-              </div>
             </div>
-          </div>
-        </div>
-        
-        <div className="card">
-          <div className="card-header">
-            <h3 className="card-title">Top Performing Products</h3>
-          </div>
-          <div className="table-responsive">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th>Department</th>
-                  <th>Avg Price</th>
-                  <th>Demand Trend</th>
-                  <th>Profit Margin</th>
-                  <th>AI Recommendation</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Portland Cement</td>
-                  <td><span className="badge badge-primary">Construction</span></td>
-                  <td>{formatCurrency(850)}</td>
-                  <td><span className="badge badge-success">↑ 12%</span></td>
-                  <td>25%</td>
-                  <td><span className="badge badge-success">Increase Stock</span></td>
-                </tr>
-                <tr>
-                  <td>Medical Gloves</td>
-                  <td><span className="badge badge-primary">Healthcare</span></td>
-                  <td>{formatCurrency(120)}</td>
-                  <td><span className="badge badge-success">↑ 15%</span></td>
-                  <td>30%</td>
-                  <td><span className="badge badge-success">Increase Stock</span></td>
-                </tr>
-                <tr>
-                  <td>Urea Fertilizer</td>
-                  <td><span className="badge badge-primary">Agriculture</span></td>
-                  <td>{formatCurrency(950)}</td>
-                  <td><span className="badge badge-warning">→ Stable</span></td>
-                  <td>18%</td>
-                  <td><span className="badge badge-warning">Maintain Level</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        
-        {company && (
-          <div className="card">
-            <div className="card-header">
-              <h3 className="card-title">Your Business Performance</h3>
-            </div>
-            <div className="performance-metrics">
-              <div className="metric">
-                <div className="metric-value">{companyMaterials.length}</div>
-                <div className="metric-label">Products Listed</div>
-              </div>
-              <div className="metric">
-                <div className="metric-value">{companyOrders.length}</div>
-                <div className="metric-label">Total Orders</div>
-              </div>
-              <div className="metric">
-                <div className="metric-value">{company.rating}/5</div>
-                <div className="metric-label">Customer Rating</div>
-              </div>
-              <div className="metric">
-                <div className="metric-value">{formatCurrency(companyOrders.reduce((sum, o) => sum + o.totalAmount, 0))}</div>
-                <div className="metric-label">Total Revenue</div>
-              </div>
-            </div>
-          </div>
+          </>
         )}
       </main>
     );
@@ -3072,14 +2915,14 @@ function App() {
             <i className="fas fa-map-marked-alt"></i>
             <h1>Supplier Map</h1>
           </div>
-          <p className="dashboard-subtitle">Interactive map showing suppliers across all Ethiopian regions with transport cost calculations</p>
+          <p className="dashboard-subtitle">Interactive map showing suppliers across all Ethiopian cities</p>
         </div>
         
         <div className="map-container">
           <div className="map-placeholder">
             <i className="fas fa-map-marked-alt"></i>
             <h3>GIS Supplier Map</h3>
-            <p>Supplier locations across Ethiopian regions would be displayed here with interactive markers</p>
+            <p>Supplier locations across Ethiopian cities would be displayed here with interactive markers</p>
             <p>Transport costs calculated based on distance from your location</p>
             {userLocation && (
               <div className="user-location-info">
@@ -3092,7 +2935,7 @@ function App() {
         
         <div className="card">
           <div className="card-header">
-            <h3 className="card-title">Suppliers by Region</h3>
+            <h3 className="card-title">Suppliers by City</h3>
             <div className="badge badge-primary">{companies.length} Verified Suppliers</div>
           </div>
           <div className="table-responsive">
@@ -3101,26 +2944,17 @@ function App() {
                 <tr>
                   <th>Company</th>
                   <th>Location</th>
-                  <th>Region</th>
+                  <th>City</th>
                   <th>TIN Number</th>
                   <th>Products</th>
                   <th>Rating</th>
-                  <th>Est. Transport Cost*</th>
+                  <th>Contact</th>
                 </tr>
               </thead>
               <tbody>
                 {companies.map((company: Company) => {
                   const companyMaterials = materials.filter(m => m.companyId === company.id);
-                  const distance = userLocation ? calculateDistance(
-                    company.lat, company.lng,
-                    userLocation.lat, userLocation.lng
-                  ) : 0;
-                  
-                  const estTransport = userLocation ? calculateTransportCost(
-                    company.lat, company.lng,
-                    userLocation.lat, userLocation.lng,
-                    100
-                  ) : 0;
+                  const supplier = getUserById(company.userId);
                   
                   return (
                     <tr key={company.id}>
@@ -3132,13 +2966,8 @@ function App() {
                         </small>
                       </td>
                       <td>{company.location}</td>
-                      <td>
-                        {company.location.includes('Addis') ? 'Addis Ababa' :
-                         company.location.includes('Bole') ? 'Addis Ababa' :
-                         company.location.includes('Merkato') ? 'Addis Ababa' :
-                         company.location.includes('Kaliti') ? 'Addis Ababa' : 'Oromia'}
-                      </td>
-                      <td>{company.tinNumber || 'Not Registered'}</td>
+                      <td>{company.city}</td>
+                      <td>{company.tinNumber}</td>
                       <td>{companyMaterials.length} items</td>
                       <td>
                         <div className="rating-display">
@@ -3146,374 +2975,18 @@ function App() {
                         </div>
                       </td>
                       <td>
-                        {formatCurrency(estTransport)}
-                        {distance > 0 && <br/>}
-                        {distance > 0 && <small>{distance.toFixed(1)} km away</small>}
+                        {supplier && (
+                          <>
+                            <div>{supplier.phone}</div>
+                            <small>{supplier.email}</small>
+                          </>
+                        )}
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
-          </div>
-          <div className="p-2">
-            <p><small>*Estimated transport cost for 100 units from your location</small></p>
-          </div>
-        </div>
-      </main>
-    );
-  };
-
-  const renderPriceForecast = () => (
-    <main className="main-content">
-      <div className="dashboard-header">
-        <div className="dashboard-title">
-          <i className="fas fa-chart-bar"></i>
-          <h1>AI Price Forecasting</h1>
-        </div>
-        <p className="dashboard-subtitle">Machine learning predictions for product prices across Ethiopian markets</p>
-      </div>
-      
-      <div className="card">
-        <div className="card-header">
-          <h3 className="card-title">30-Day Price Forecast</h3>
-          <div className="badge badge-primary">Powered by AI</div>
-        </div>
-        <div className="p-2">
-          <div className="forecast-chart-placeholder">
-            <i className="fas fa-chart-line"></i>
-            <p>Price forecasting chart would be displayed here</p>
-          </div>
-        </div>
-      </div>
-      
-      <div className="dashboard-grid">
-        <div className="dashboard-card">
-          <div className="card-header">
-            <h3 className="card-title">Construction Forecast</h3>
-            <div className="card-icon"><i className="fas fa-industry"></i></div>
-          </div>
-          <div className="stat-value">+5.2%</div>
-          <p className="stat-label">Expected price increase</p>
-          <div className="mt-2">
-            <p><small><strong>Factors:</strong> Rising demand, fuel costs, seasonal factors</small></p>
-          </div>
-        </div>
-        
-        <div className="dashboard-card">
-          <div className="card-header">
-            <h3 className="card-title">Agriculture Forecast</h3>
-            <div className="card-icon"><i className="fas fa-seedling"></i></div>
-          </div>
-          <div className="stat-value">+3.5%</div>
-          <p className="stat-label">Expected price increase</p>
-          <div className="mt-2">
-            <p><small><strong>Factors:</strong> Planting season, fertilizer costs, weather patterns</small></p>
-          </div>
-        </div>
-        
-        <div className="dashboard-card">
-          <div className="card-header">
-            <h3 className="card-title">Transport Cost</h3>
-            <div className="card-icon"><i className="fas fa-truck"></i></div>
-          </div>
-          <div className="stat-value">+3.5%</div>
-          <p className="stat-label">Expected increase</p>
-          <div className="mt-2">
-            <p><small><strong>Factors:</strong> Fuel prices, road conditions, seasonal traffic</small></p>
-          </div>
-        </div>
-      </div>
-      
-      <div className="card">
-        <div className="card-header">
-          <h3 className="card-title">AI Recommendations</h3>
-        </div>
-        <div className="p-2">
-          <div className="alert alert-info">
-            <i className="fas fa-robot"></i>
-            <strong>AI Suggestion:</strong> Based on current trends, we recommend purchasing construction materials and medical supplies now before expected price increases in the coming month.
-          </div>
-          <div className="alert alert-success">
-            <i className="fas fa-lightbulb"></i>
-            <strong>Cost Optimization:</strong> Consider ordering from suppliers in Addis Ababa for central Ethiopia deliveries to minimize transport costs.
-          </div>
-          <div className="alert alert-warning">
-            <i className="fas fa-exclamation-triangle"></i>
-            <strong>Market Alert:</strong> Agricultural product prices may fluctuate during rainy season (June-September). Plan procurement accordingly.
-          </div>
-          <div className="alert alert-primary">
-            <i className="fas fa-file-contract"></i>
-            <strong>Tax Compliance:</strong> Ensure all transactions include proper VAT documentation as per Ethiopian Revenue and Customs Authority guidelines.
-          </div>
-        </div>
-      </div>
-    </main>
-  );
-
-  const renderTinRegistration = () => {
-    const userTin = getTinByUserId(currentUser?.id || '');
-    
-    if (userTin) {
-      return (
-        <main className="main-content">
-          <div className="form-container">
-            <div className="tin-status-card">
-              <div className="tin-status-header">
-                <i className="fas fa-file-contract success"></i>
-                <h2>TIN Already Registered</h2>
-              </div>
-              <div className="tin-details">
-                <div className="tin-detail-item">
-                  <label>TIN Number:</label>
-                  <span className="tin-value">{userTin.tinNumber}</span>
-                </div>
-                <div className="tin-detail-item">
-                  <label>Registration Date:</label>
-                  <span className="tin-value">{formatDate(userTin.registeredDate)}</span>
-                </div>
-                <div className="tin-detail-item">
-                  <label>Business Type:</label>
-                  <span className="tin-value">{userTin.businessType}</span>
-                </div>
-                <div className="tin-detail-item">
-                  <label>Status:</label>
-                  <span className="badge badge-success">Active & Compliant</span>
-                </div>
-              </div>
-              <div className="compliance-note">
-                <i className="fas fa-check-circle"></i>
-                Your business is compliant with Ethiopian Revenue and Customs Authority regulations.
-              </div>
-              <div className="tin-actions">
-                <button className="btn btn-secondary" onClick={() => navigateTo('company-dashboard')}>
-                  <i className="fas fa-arrow-left"></i> Back to Dashboard
-                </button>
-                <button className="btn btn-primary" onClick={() => window.print()}>
-                  <i className="fas fa-print"></i> Print Certificate
-                </button>
-              </div>
-            </div>
-          </div>
-        </main>
-      );
-    }
-    
-    if (!currentUser || currentUser.userType !== 'company') {
-      return (
-        <main className="main-content">
-          <div className="alert alert-danger">
-            <i className="fas fa-exclamation-circle"></i>
-            TIN registration is only available for registered companies/suppliers.
-          </div>
-        </main>
-      );
-    }
-    
-    return (
-      <main className="main-content">
-        <div className="form-container">
-          <h2 className="form-title">Register Taxpayer Identification Number (TIN)</h2>
-          <p className="form-subtitle">Register your business TIN for Ethiopian tax purposes as required by law</p>
-          
-          <form onSubmit={handleTinRegistration}>
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">TIN Number *</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  name="tinNumber"
-                  value={tinData.tinNumber}
-                  onChange={handleTinInputChange}
-                  required 
-                  placeholder="ET0001234567"
-                  pattern="ET\d{10}"
-                  title="TIN must start with ET followed by 10 digits"
-                />
-                <small className="form-hint">Format: ET followed by 10 digits (e.g., ET0001234567)</small>
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">Business Name *</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  name="businessName"
-                  value={tinData.businessName}
-                  onChange={handleTinInputChange}
-                  required 
-                  placeholder="Your registered business name"
-                />
-              </div>
-            </div>
-            
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Business Type *</label>
-                <select 
-                  className="form-select" 
-                  name="businessType"
-                  value={tinData.businessType}
-                  onChange={handleTinInputChange}
-                  required
-                >
-                  <option value="">Select Business Type</option>
-                  <option value="Sole Proprietorship">Sole Proprietorship</option>
-                  <option value="Partnership">Partnership</option>
-                  <option value="Private Limited Company">Private Limited Company</option>
-                  <option value="Share Company">Share Company</option>
-                  <option value="Government Enterprise">Government Enterprise</option>
-                  <option value="NGO">NGO</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">VAT Number</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  name="vatNumber"
-                  value={tinData.vatNumber}
-                  onChange={handleTinInputChange}
-                  placeholder="VAT00123456 (if applicable)"
-                />
-              </div>
-            </div>
-            
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Region *</label>
-                <select 
-                  className="form-select" 
-                  name="region"
-                  value={tinData.region}
-                  onChange={handleTinInputChange}
-                  required
-                >
-                  <option value="">Select Region</option>
-                  {ETHIOPIAN_REGIONS.map(region => (
-                    <option key={region} value={region}>{region}</option>
-                  ))}
-                </select>
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">Trade License Number *</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  name="tradeLicense"
-                  value={tinData.tradeLicense}
-                  onChange={handleTinInputChange}
-                  required
-                  placeholder="e.g., BL/ET/2023/001"
-                />
-              </div>
-            </div>
-            
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Woreda</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  name="woreda"
-                  value={tinData.woreda}
-                  onChange={handleTinInputChange}
-                  placeholder="Enter woreda name"
-                />
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">Kebele</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  name="kebele"
-                  value={tinData.kebele}
-                  onChange={handleTinInputChange}
-                  placeholder="Enter kebele number"
-                />
-              </div>
-            </div>
-            
-            <div className="form-group">
-              <label className="form-label">Business Address *</label>
-              <input 
-                type="text" 
-                className="form-input" 
-                name="businessAddress"
-                value={tinData.businessAddress}
-                onChange={handleTinInputChange}
-                required 
-                placeholder="Full business address"
-              />
-            </div>
-            
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Registration Date *</label>
-                <input 
-                  type="date" 
-                  className="form-input" 
-                  name="registrationDate"
-                  value={tinData.registrationDate}
-                  onChange={handleTinInputChange}
-                  required 
-                />
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">License Expiry Date *</label>
-                <input 
-                  type="date" 
-                  className="form-input" 
-                  name="licenseExpiry"
-                  value={tinData.licenseExpiry}
-                  onChange={handleTinInputChange}
-                  required 
-                />
-              </div>
-            </div>
-            
-            <div className="form-group">
-              <label className="form-label">
-                <input type="checkbox" required /> I certify that all information provided is accurate
-              </label>
-              <p className="form-hint">
-                By submitting, you agree to comply with Ethiopian tax laws and regulations.
-                False information may result in legal action.
-              </p>
-            </div>
-            
-            <div className="form-actions">
-              <button type="submit" className="btn-submit">
-                <i className="fas fa-file-contract"></i> Register TIN & Become Compliant
-              </button>
-              <button type="button" className="btn-secondary" onClick={() => navigateTo('company-dashboard')}>
-                <i className="fas fa-times"></i> Cancel
-              </button>
-            </div>
-          </form>
-          
-          <div className="tin-info-box">
-            <h4><i className="fas fa-info-circle"></i> About Ethiopian TIN Registration</h4>
-            <p>The Taxpayer Identification Number (TIN) is mandatory for all businesses in Ethiopia under Proclamation No. 983/2016.</p>
-            <ul>
-              <li><strong>Legal Requirement:</strong> All businesses must register for TIN with the Ethiopian Revenue and Customs Authority (ERCA)</li>
-              <li><strong>Tax Compliance:</strong> Required for tax filing, customs clearance, and business transactions</li>
-              <li><strong>Validity:</strong> TIN is valid for the lifetime of the business</li>
-              <li><strong>Annual Renewal:</strong> Must be renewed annually for tax purposes</li>
-              <li><strong>VAT Registration:</strong> Businesses with annual turnover above 1,000,000 ETB must register for VAT</li>
-              <li><strong>Penalties:</strong> Failure to register may result in fines and business suspension</li>
-            </ul>
-            <div className="legal-note">
-              <i className="fas fa-balance-scale"></i>
-              <strong>Legal Note:</strong> This platform complies with Ethiopian commercial code and tax regulations.
-              All transactions are recorded for tax audit purposes.
-            </div>
           </div>
         </div>
       </main>
@@ -3526,7 +2999,7 @@ function App() {
         <div className="footer-section">
           <h3>EthioSupply AI</h3>
           <p>AI-driven platform optimizing supply chains across all departments in Ethiopia. Master's Program Project.</p>
-          <p><i className="fas fa-map-marker-alt"></i> Serving All Regions of Ethiopia</p>
+          <p><i className="fas fa-map-marker-alt"></i> Serving All Cities of Ethiopia</p>
           <p><i className="fas fa-balance-scale"></i> Compliant with Ethiopian Trade Regulations</p>
         </div>
         
@@ -3536,15 +3009,15 @@ function App() {
             <li><a href="#" onClick={(e) => { e.preventDefault(); navigateTo('home'); }}><i className="fas fa-chevron-right"></i> Home</a></li>
             <li><a href="#" onClick={(e) => { e.preventDefault(); navigateTo('search-materials'); }}><i className="fas fa-chevron-right"></i> Find Products</a></li>
             <li><a href="#" onClick={(e) => { e.preventDefault(); navigateTo('supplier-map'); }}><i className="fas fa-chevron-right"></i> Supplier Map</a></li>
-            <li><a href="#" onClick={(e) => { e.preventDefault(); navigateTo('price-forecast'); }}><i className="fas fa-chevron-right"></i> Price Forecast</a></li>
+            <li><a href="#" onClick={(e) => { e.preventDefault(); navigateTo('register'); }}><i className="fas fa-chevron-right"></i> Register</a></li>
           </ul>
         </div>
         
         <div className="footer-section">
-          <h3>Departments</h3>
-          <div className="footer-departments">
-            {DEPARTMENTS.slice(0, 6).map((dept, index) => (
-              <span key={index} className="footer-dept-badge">{dept}</span>
+          <h3>Major Cities</h3>
+          <div className="footer-cities">
+            {ETHIOPIAN_CITIES.slice(0, 8).map((city, index) => (
+              <span key={index} className="footer-city-badge">{city}</span>
             ))}
           </div>
         </div>
@@ -3580,10 +3053,7 @@ function App() {
       case 'add-material': return renderAddMaterial();
       case 'search-materials': return renderSearchMaterials();
       case 'orders': return renderOrders();
-      case 'analytics': return renderAnalytics();
       case 'supplier-map': return renderSupplierMap();
-      case 'price-forecast': return renderPriceForecast();
-      case 'tin-registration': return renderTinRegistration();
       default: return renderHome();
     }
   };
