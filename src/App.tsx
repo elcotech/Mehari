@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import './App.css';
-// Force new build - 2025-02-21
+
 // Define TypeScript interfaces
 interface User {
   id: string;
@@ -811,6 +811,15 @@ function App() {
       return;
     }
     
+    // Build specifications object – always defined, even if empty
+    const specifications = {
+      weight: materialWeight || undefined,
+      dimensions: materialDimensions || undefined,
+      grade: materialGrade || undefined,
+      origin: materialOrigin || undefined,
+      certification: materialCertifications.split(',').map(c => c.trim()).filter(c => c)
+    };
+    
     const newMaterial: Material = {
       id: 'mat' + (materials.length + 1),
       companyId: company.id,
@@ -825,13 +834,7 @@ function App() {
       rating: 0,
       brand: materialBrand || undefined,
       model: materialModel || undefined,
-      specifications: {
-        weight: materialWeight || undefined,
-        dimensions: materialDimensions || undefined,
-        grade: materialGrade || undefined,
-        origin: materialOrigin || undefined,
-        certification: materialCertifications.split(',').map(c => c.trim()).filter(c => c)
-      },
+      specifications,  // always an object
       taxIncluded: true,
       vatPercentage: 15,
       lastUpdated: new Date().toISOString().split('T')[0]
@@ -1235,7 +1238,8 @@ function App() {
   };
 
   const renderMaterialSpecs = (material: Material) => {
-    const specs = material.specifications;
+    // Use a default empty object if specifications is missing
+    const specs = material.specifications || {};
     return (
       <div className="specs-grid">
         {specs.brand && (
@@ -1570,6 +1574,8 @@ function App() {
         <div className="materials-grid">
           {materials.slice(0, 4).map((material: Material) => {
             const company = getCompanyById(material.companyId);
+            // Safe access to specifications
+            const specs = material.specifications || {};
             return (
               <div className="material-card" key={material.id} onClick={() => setSelectedMaterial(material)}>
                 <div className="material-header">
@@ -1586,8 +1592,8 @@ function App() {
                   
                   <div className="material-specs-preview">
                     {material.brand && <span><i className="fas fa-tag"></i> {material.brand}</span>}
-                    {material.specifications.grade && <span><i className="fas fa-certificate"></i> {material.specifications.grade}</span>}
-                    {material.specifications.origin && <span><i className="fas fa-globe"></i> {material.specifications.origin}</span>}
+                    {specs.grade && <span><i className="fas fa-certificate"></i> {specs.grade}</span>}
+                    {specs.origin && <span><i className="fas fa-globe"></i> {specs.origin}</span>}
                   </div>
                   
                   <div className="material-price">
@@ -2033,42 +2039,45 @@ function App() {
                 </tr>
               </thead>
               <tbody>
-                {companyMaterials.map((material: Material) => (
-                  <tr key={material.id}>
-                    <td>
-                      <strong>{material.name}</strong><br/>
-                      <small>{material.brand} | {material.model}</small>
-                    </td>
-                    <td><span className="badge badge-primary">{material.category}</span></td>
-                    <td>
-                      <div className="specs-preview">
-                        {material.specifications.grade && <span>{material.specifications.grade}</span>}
-                        {material.specifications.weight && <span>{material.specifications.weight}</span>}
-                        {material.specifications.origin && <span>{material.specifications.origin}</span>}
-                      </div>
-                    </td>
-                    <td>
-                      <strong>{formatCurrency(material.price)}</strong><br/>
-                      <small>VAT: {material.vatPercentage}%</small>
-                    </td>
-                    <td>{material.quantity} {material.unit}</td>
-                    <td>
-                      {material.quantity > 0 
-                        ? <span className="badge badge-success">In Stock</span> 
-                        : <span className="badge badge-danger">Out of Stock</span>}
-                    </td>
-                    <td>
-                      <div className="table-actions">
-                        <button className="btn-action btn-edit" onClick={() => setSelectedMaterial(material)}>
-                          <i className="fas fa-eye"></i> View
-                        </button>
-                        <button className="btn-action btn-delete" onClick={() => handleDeleteMaterial(material.id)}>
-                          <i className="fas fa-trash"></i> Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {companyMaterials.map((material: Material) => {
+                  const specs = material.specifications || {};
+                  return (
+                    <tr key={material.id}>
+                      <td>
+                        <strong>{material.name}</strong><br/>
+                        <small>{material.brand} | {material.model}</small>
+                      </td>
+                      <td><span className="badge badge-primary">{material.category}</span></td>
+                      <td>
+                        <div className="specs-preview">
+                          {specs.grade && <span>{specs.grade}</span>}
+                          {specs.weight && <span>{specs.weight}</span>}
+                          {specs.origin && <span>{specs.origin}</span>}
+                        </div>
+                      </td>
+                      <td>
+                        <strong>{formatCurrency(material.price)}</strong><br/>
+                        <small>VAT: {material.vatPercentage}%</small>
+                      </td>
+                      <td>{material.quantity} {material.unit}</td>
+                      <td>
+                        {material.quantity > 0 
+                          ? <span className="badge badge-success">In Stock</span> 
+                          : <span className="badge badge-danger">Out of Stock</span>}
+                      </td>
+                      <td>
+                        <div className="table-actions">
+                          <button className="btn-action btn-edit" onClick={() => setSelectedMaterial(material)}>
+                            <i className="fas fa-eye"></i> View
+                          </button>
+                          <button className="btn-action btn-delete" onClick={() => handleDeleteMaterial(material.id)}>
+                            <i className="fas fa-trash"></i> Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -2655,6 +2664,7 @@ function App() {
                   {displayMaterials.map(item => {
                     const company = getCompanyById(item.companyId);
                     const supplier = company ? getUserById(company.userId) : null;
+                    const specs = item.specifications || {}; // safe fallback
                     
                     return (
                       <tr key={item.id} onClick={() => setSelectedMaterial(item)} style={{ cursor: 'pointer' }}>
@@ -2674,9 +2684,9 @@ function App() {
                         </td>
                         <td>
                           <div className="specs-preview">
-                            {item.specifications.grade && <span>Grade: {item.specifications.grade}</span>}
-                            {item.specifications.weight && <span>Weight: {item.specifications.weight}</span>}
-                            {item.specifications.origin && <span>Origin: {item.specifications.origin}</span>}
+                            {specs.grade && <span>Grade: {specs.grade}</span>}
+                            {specs.weight && <span>Weight: {specs.weight}</span>}
+                            {specs.origin && <span>Origin: {specs.origin}</span>}
                           </div>
                         </td>
                         <td className="price-cell">{formatCurrency(item.price)}</td>
