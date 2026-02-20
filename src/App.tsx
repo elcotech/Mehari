@@ -176,29 +176,58 @@ const CERTIFICATION_STANDARDS = [
   'Occupational Health & Safety'
 ];
 
+// Safe localStorage helpers (handles private mode)
+const safeLocalStorage = {
+  getItem: (key: string): string | null => {
+    try {
+      return localStorage.getItem(key);
+    } catch (e) {
+      console.warn('localStorage not available, using in-memory fallback');
+      return null;
+    }
+  },
+  setItem: (key: string, value: string): void => {
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {
+      console.warn('localStorage not available, data not persisted');
+    }
+  },
+  removeItem: (key: string): void => {
+    try {
+      localStorage.removeItem(key);
+    } catch (e) {
+      console.warn('localStorage not available');
+    }
+  }
+};
+
 function App() {
-  // State Management
-  const [currentPage, setCurrentPage] = useState<string>('home');
+  // State Management (with localStorage fallback)
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const savedUser = localStorage.getItem('currentUser');
-    return savedUser ? JSON.parse(savedUser) : null;
+    const saved = safeLocalStorage.getItem('currentUser');
+    return saved ? JSON.parse(saved) : null;
   });
+
   const [materials, setMaterials] = useState<Material[]>(() => {
-    const savedMaterials = localStorage.getItem('materials');
-    return savedMaterials ? JSON.parse(savedMaterials) : [];
+    const saved = safeLocalStorage.getItem('materials');
+    return saved ? JSON.parse(saved) : [];
   });
+
   const [companies, setCompanies] = useState<Company[]>(() => {
-    const savedCompanies = localStorage.getItem('companies');
-    return savedCompanies ? JSON.parse(savedCompanies) : [];
+    const saved = safeLocalStorage.getItem('companies');
+    return saved ? JSON.parse(saved) : [];
   });
+
   const [orders, setOrders] = useState<Order[]>(() => {
-    const savedOrders = localStorage.getItem('orders');
-    return savedOrders ? JSON.parse(savedOrders) : [];
+    const saved = safeLocalStorage.getItem('orders');
+    return saved ? JSON.parse(saved) : [];
   });
+
   const [users, setUsers] = useState<User[]>(() => {
-    const savedUsers = localStorage.getItem('users');
-    if (savedUsers) {
-      const parsedUsers = JSON.parse(savedUsers);
+    const saved = safeLocalStorage.getItem('users');
+    if (saved) {
+      const parsedUsers = JSON.parse(saved);
       return parsedUsers.map((user: User) => ({
         ...user,
         loginAttempts: user.loginAttempts || 0,
@@ -253,7 +282,7 @@ function App() {
     materialCertifications: '',
   });
 
-  // Initialize with sample data
+  // Initialize with sample data if no data exists
   useEffect(() => {
     const initializeData = () => {
       if (users.length === 0) {
@@ -297,7 +326,7 @@ function App() {
           }
         ];
         setUsers(sampleUsers);
-        localStorage.setItem('users', JSON.stringify(sampleUsers));
+        safeLocalStorage.setItem('users', JSON.stringify(sampleUsers));
       }
 
       if (companies.length === 0) {
@@ -358,7 +387,7 @@ function App() {
           }
         ];
         setCompanies(sampleCompanies);
-        localStorage.setItem('companies', JSON.stringify(sampleCompanies));
+        safeLocalStorage.setItem('companies', JSON.stringify(sampleCompanies));
       }
 
       if (materials.length === 0) {
@@ -487,7 +516,7 @@ function App() {
           }
         ];
         setMaterials(sampleMaterials);
-        localStorage.setItem('materials', JSON.stringify(sampleMaterials));
+        safeLocalStorage.setItem('materials', JSON.stringify(sampleMaterials));
       }
 
       if (orders.length === 0) {
@@ -513,28 +542,28 @@ function App() {
           }
         ];
         setOrders(sampleOrders);
-        localStorage.setItem('orders', JSON.stringify(sampleOrders));
+        safeLocalStorage.setItem('orders', JSON.stringify(sampleOrders));
       }
     };
 
     initializeData();
   }, []);
 
-  // Save to localStorage when data changes
+  // Save to localStorage when data changes (only if available)
   useEffect(() => {
-    localStorage.setItem('materials', JSON.stringify(materials));
+    safeLocalStorage.setItem('materials', JSON.stringify(materials));
   }, [materials]);
 
   useEffect(() => {
-    localStorage.setItem('companies', JSON.stringify(companies));
+    safeLocalStorage.setItem('companies', JSON.stringify(companies));
   }, [companies]);
 
   useEffect(() => {
-    localStorage.setItem('orders', JSON.stringify(orders));
+    safeLocalStorage.setItem('orders', JSON.stringify(orders));
   }, [orders]);
 
   useEffect(() => {
-    localStorage.setItem('users', JSON.stringify(users));
+    safeLocalStorage.setItem('users', JSON.stringify(users));
   }, [users]);
 
   // Utility Functions
@@ -638,7 +667,7 @@ function App() {
       }));
       
       setCurrentUser(user);
-      localStorage.setItem('currentUser', JSON.stringify(user));
+      safeLocalStorage.setItem('currentUser', JSON.stringify(user));
       showAlert('Login successful!', 'success');
       setCurrentPage('home');
       setFormData(prev => ({ ...prev, loginPassword: '', selectedUser: '' }));
@@ -753,7 +782,7 @@ function App() {
 
   const handleLogout = (): void => {
     setCurrentUser(null);
-    localStorage.removeItem('currentUser');
+    safeLocalStorage.removeItem('currentUser');
     showAlert('Logged out successfully', 'info');
     setCurrentPage('home');
   };
@@ -1087,6 +1116,8 @@ function App() {
     
     return { totalRevenue, pendingOrders, deliveredOrders, totalOrders: userOrders.length };
   };
+
+  // All render functions remain exactly as provided, except renderSearchMaterials which is replaced below.
 
   const renderHeader = () => (
     <header className="header">
@@ -2446,6 +2477,7 @@ function App() {
     </main>
   );
 
+  // ** MODIFIED: renderSearchMaterials now shows a fancy scrollable table with frozen product name column and headers **
   const renderSearchMaterials = () => {
     const hasSearchResults = searchResults.length > 0;
     const displayMaterials = hasSearchResults ? searchResults : materials;
@@ -2595,111 +2627,83 @@ function App() {
               </button>
             </div>
           ) : (
-            <div className="materials-grid enhanced">
-              {displayMaterials.map(item => {
-                const company = getCompanyById(item.companyId);
-                const supplier = company ? getUserById(company.userId) : null;
-                
-                return (
-                  <div className="material-card enhanced" key={item.id}>
-                    <div className="material-header">
-                      <div className="material-title-section">
-                        <h3 className="material-title">{item.name}</h3>
-                        <div className="material-meta">
-                          <span className="material-category">{item.category}</span>
-                          {item.brand && <span className="material-brand">{item.brand}</span>}
-                        </div>
-                      </div>
-                      <div className="material-supplier">
-                        <i className="fas fa-building"></i>
-                        <div className="supplier-info">
-                          <span className="supplier-name">{company ? company.name : 'Unknown Supplier'}</span>
-                          <span className="supplier-location">
-                            <i className="fas fa-map-marker-alt"></i> {company?.city}
-                          </span>
-                          {company?.tinNumber && (
-                            <span className="supplier-tin">
-                              <i className="fas fa-file-contract"></i> TIN: {company.tinNumber}
-                            </span>
-                          )}
-                        </div>
-                        <span className="supplier-rating">
-                          <i className="fas fa-star"></i> {company ? company.rating : 'N/A'}/5
-                        </span>
-                      </div>
-                    </div>
+            // ** Fancy scrollable table with frozen first column and headers **
+            <div className="table-responsive fancy-table-container">
+              <table className="data-table fancy-search-table">
+                <thead>
+                  <tr>
+                    <th>Product Name</th>
+                    <th>Department</th>
+                    <th>Supplier</th>
+                    <th>City</th>
+                    <th>Brand/Model</th>
+                    <th>Specifications</th>
+                    <th>Price (ETB)</th>
+                    <th>Unit</th>
+                    <th>Stock</th>
+                    <th>Min Order</th>
+                    <th>VAT</th>
+                    <th>Rating</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayMaterials.map(item => {
+                    const company = getCompanyById(item.companyId);
+                    const supplier = company ? getUserById(company.userId) : null;
                     
-                    <div className="material-body">
-                      <p className="material-description">{item.description}</p>
-                      
-                      <div className="material-specs">
-                        {item.brand && (
-                          <div className="spec-item">
-                            <i className="fas fa-tag"></i>
-                            <span>Brand: {item.brand}</span>
+                    return (
+                      <tr key={item.id} onClick={() => setSelectedMaterial(item)} style={{ cursor: 'pointer' }}>
+                        <td className="product-name-cell">
+                          <strong>{item.name}</strong>
+                          {item.brand && <div><small>Brand: {item.brand}</small></div>}
+                        </td>
+                        <td><span className="badge badge-primary">{item.category}</span></td>
+                        <td>
+                          {company?.name || 'Unknown'}
+                          {company?.tinNumber && <div><small>TIN: {company.tinNumber}</small></div>}
+                        </td>
+                        <td>{company?.city || 'N/A'}</td>
+                        <td>
+                          {item.brand && <div><i className="fas fa-tag"></i> {item.brand}</div>}
+                          {item.model && <div><i className="fas fa-cube"></i> {item.model}</div>}
+                        </td>
+                        <td>
+                          <div className="specs-preview">
+                            {item.specifications.grade && <span>Grade: {item.specifications.grade}</span>}
+                            {item.specifications.weight && <span>Weight: {item.specifications.weight}</span>}
+                            {item.specifications.origin && <span>Origin: {item.specifications.origin}</span>}
                           </div>
-                        )}
-                        {item.model && (
-                          <div className="spec-item">
-                            <i className="fas fa-cube"></i>
-                            <span>Model: {item.model}</span>
+                        </td>
+                        <td className="price-cell">{formatCurrency(item.price)}</td>
+                        <td>{item.unit}</td>
+                        <td className={item.quantity > 0 ? 'stock-available' : 'stock-out'}>
+                          {item.quantity > 0 ? item.quantity : 'Out'}
+                        </td>
+                        <td>{item.minOrder}</td>
+                        <td>{item.vatPercentage}%</td>
+                        <td>
+                          <div className="rating-display">
+                            <i className="fas fa-star"></i> {item.rating || 'N/A'}/5
                           </div>
-                        )}
-                        {item.specifications.grade && (
-                          <div className="spec-item">
-                            <i className="fas fa-certificate"></i>
-                            <span>Grade: {item.specifications.grade}</span>
+                        </td>
+                        <td>
+                          <div className="table-actions">
+                            <button className="btn-action btn-view" onClick={(e) => { e.stopPropagation(); setSelectedMaterial(item); }}>
+                              <i className="fas fa-eye"></i> Details
+                            </button>
+                            {supplier && (
+                              <button className="btn-action btn-primary" onClick={(e) => { e.stopPropagation(); handleContactSupplier(item.id); }}>
+                                <i className="fas fa-phone-alt"></i> Contact
+                              </button>
+                            )}
                           </div>
-                        )}
-                        {item.specifications.weight && (
-                          <div className="spec-item">
-                            <i className="fas fa-weight"></i>
-                            <span>Weight: {item.specifications.weight}</span>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="material-price-section">
-                        <div className="main-price">
-                          <div className="price-amount">{formatCurrency(item.price)}</div>
-                          <div className="price-unit">per {item.unit}</div>
-                        </div>
-                        <div className="price-details">
-                          <div className="detail-item">
-                            <span className="label">Min Order:</span>
-                            <span className="value">{item.minOrder} {item.unit}</span>
-                          </div>
-                          <div className="detail-item">
-                            <span className="label">Available:</span>
-                            <span className="value">{item.quantity} {item.unit}</span>
-                          </div>
-                          <div className="detail-item">
-                            <span className="label">VAT:</span>
-                            <span className="value">{item.vatPercentage}% included</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="material-actions">
-                        <button 
-                          className="btn btn-primary" 
-                          onClick={() => setSelectedMaterial(item)}
-                        >
-                          <i className="fas fa-eye"></i> View Details
-                        </button>
-                        {supplier && (
-                          <button 
-                            className="btn btn-outline"
-                            onClick={() => handleContactSupplier(item.id)}
-                          >
-                            <i className="fas fa-phone-alt"></i> Contact Supplier
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
