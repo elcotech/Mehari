@@ -644,31 +644,110 @@ h1, h2, h3, h4, h5, h6 {
 
 .table-responsive {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 800px;
+  min-width: 1200px; /* Ensure horizontal scroll on smaller screens */
+  position: relative;
+}
+
+.data-table th,
+.data-table td {
+  padding: 1.2rem 1.5rem;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+  vertical-align: middle;
+  white-space: nowrap;
 }
 
 .data-table th {
   background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
   color: white;
-  padding: 1.2rem 1.5rem;
-  text-align: left;
   font-weight: 600;
   font-size: 1.1rem;
+  position: sticky;
+  top: 0;
+  z-index: 3;
 }
 
-.data-table td {
-  padding: 1.2rem 1.5rem;
-  border-bottom: 1px solid #eee;
-  vertical-align: middle;
+.data-table th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
 }
 
-.data-table tr:hover {
+.data-table td:first-child {
+  position: sticky;
+  left: 0;
+  background: white;
+  z-index: 2;
+  font-weight: 500;
+}
+
+.data-table td:first-child::after,
+.data-table th:first-child::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(0,0,0,0.1);
+  pointer-events: none;
+}
+
+.data-table th:first-child::after {
+  background: rgba(255,255,255,0.3);
+}
+
+.data-table tr:hover td:first-child {
   background: #f8fafc;
+}
+
+.data-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+/* Fancy search table specific */
+.fancy-table-container {
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin: 2rem 0;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.fancy-search-table th {
+  white-space: nowrap;
+}
+
+.fancy-search-table td {
+  white-space: nowrap;
+}
+
+.fancy-search-table .product-name-cell {
+  min-width: 250px;
+  white-space: normal;
+  word-wrap: break-word;
+}
+
+.fancy-search-table .price-cell {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.fancy-search-table .stock-available {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.fancy-search-table .stock-out {
+  color: var(--danger);
+  font-weight: 600;
 }
 
 .table-actions {
@@ -724,7 +803,7 @@ h1, h2, h3, h4, h5, h6 {
   transform: translateY(-2px);
 }
 
-/* Material Cards */
+/* Material Cards (unchanged) */
 .materials-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
