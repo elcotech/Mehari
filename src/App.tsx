@@ -282,6 +282,10 @@ function App() {
     materialCertifications: '',
   });
 
+  // ==================== ADDED MISSING STATE ====================
+  const [currentPage, setCurrentPage] = useState<string>('home');
+  // =============================================================
+
   // Initialize with sample data if no data exists
   useEffect(() => {
     const initializeData = () => {
