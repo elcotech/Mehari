@@ -1360,16 +1360,6 @@ function App() {
                         <i className="fas fa-envelope"></i>
                         <span>{supplier.email}</span>
                       </div>
-                      <div className="info-item">
-                        <i className="fas fa-file-contract"></i>
-                        <span>TIN: {company.tinNumber}</span>
-                      </div>
-                      {company.vatNumber && (
-                        <div className="info-item">
-                          <i className="fas fa-file-invoice"></i>
-                          <span>VAT: {company.vatNumber}</span>
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
@@ -2519,7 +2509,7 @@ function App() {
             <div className="search-filters">
               <div className="filter-row">
                 <div className="filter-group">
-                  <label>Department</label>
+                  <label className="filter-label">Department</label>
                   <select 
                     className="filter-select" 
                     name="searchCategory"
@@ -2534,7 +2524,7 @@ function App() {
                 </div>
                 
                 <div className="filter-group">
-                  <label>City</label>
+                  <label className="filter-label">City</label>
                   <select 
                     className="filter-select" 
                     name="searchCity"
@@ -2549,7 +2539,7 @@ function App() {
                 </div>
                 
                 <div className="filter-group">
-                  <label>Max Price (ETB)</label>
+                  <label className="filter-label">Max Price (ETB)</label>
                   <input 
                     type="number" 
                     className="filter-input" 
@@ -2561,7 +2551,7 @@ function App() {
                 </div>
                 
                 <div className="filter-group">
-                  <label>Sort By</label>
+                  <label className="filter-label">Sort By</label>
                   <select 
                     className="filter-select" 
                     name="searchSortBy"
@@ -2649,7 +2639,6 @@ function App() {
                     <th>Department</th>
                     <th>Supplier</th>
                     <th>City</th>
-                    <th>Brand/Model</th>
                     <th>Specifications</th>
                     <th>Price (ETB)</th>
                     <th>Unit</th>
@@ -2671,17 +2660,13 @@ function App() {
                         <td className="product-name-cell">
                           <strong>{item.name}</strong>
                           {item.brand && <div><small>Brand: {item.brand}</small></div>}
+                          {item.model && <div><small>Model: {item.model}</small></div>}
                         </td>
                         <td><span className="badge badge-primary">{item.category}</span></td>
                         <td>
                           {company?.name || 'Unknown'}
-                          {company?.tinNumber && <div><small>TIN: {company.tinNumber}</small></div>}
                         </td>
                         <td>{company?.city || 'N/A'}</td>
-                        <td>
-                          {item.brand && <div><i className="fas fa-tag"></i> {item.brand}</div>}
-                          {item.model && <div><i className="fas fa-cube"></i> {item.model}</div>}
-                        </td>
                         <td>
                           <div className="specs-preview">
                             {specs.grade && <span>Grade: {specs.grade}</span>}
@@ -2963,7 +2948,6 @@ function App() {
                   <th>Company</th>
                   <th>Location</th>
                   <th>City</th>
-                  <th>TIN Number</th>
                   <th>Products</th>
                   <th>Rating</th>
                   <th>Contact</th>
@@ -2985,7 +2969,6 @@ function App() {
                       </td>
                       <td>{company.location}</td>
                       <td>{company.city}</td>
-                      <td>{company.tinNumber}</td>
                       <td>{companyMaterials.length} items</td>
                       <td>
                         <div className="rating-display">
